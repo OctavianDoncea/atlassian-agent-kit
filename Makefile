@@ -26,3 +26,9 @@ test:
 
 lint:
 	ruff check src tests scripts
+
+keygen:
+	python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+run:
+	uvicorn agentkit.api.main:app --reload --port 8000

@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     groq_api_key: str = ''
     llm_model: str = 'openai/gpt-oss-120b'
     app_env: str = 'dev'
+    token_encryption_key: str = ''
+    oauth_state_ttl_seconds: int = 600
+    auth_base_url: str = 'https://auth.atlassian.com'
+    api_base_url: str = 'https://api.atlassian.com'
 
 
 @lru_cache()

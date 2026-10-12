@@ -65,3 +65,19 @@ class EvalRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     tool_schema: Mapped[ToolSchema] = relationship(back_populates='eval_runs')
+
+
+class OAuthToken(Base):
+    __tablename__ = 'oauth_tokens'
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cloud_id: Mapped[str] = mapped_column(String(120), unique=True, index=True, nullable=False)
+    site_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    access_token: Mapped[str] = mapped_column(Text, nullable=False)
+    refresh_token: Mapped[str] = mapped_column(Text, nullable=False)
+    scope: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    def __repr__(self) -> str:
+        return f'<OAuthToken cloud={self.cloud_id} expires_at={self.expires_at}>'

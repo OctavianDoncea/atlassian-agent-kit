@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     atlassian_redirect_uri: str = 'http://localhost:8000/auth/atlassian/callback'
     atlassian_scopes: str = (
         'read:jira-work write:jira-work read:jira-user '
-        'read:confluence-content.all write:confluence-content read:confluence-space.all '
+        'read:confluence-content.all write:confluence-content read:confluence-space.summary '
+        'read:space:confluence read:page:confluence write:page:confluence '
         'offline_access'
     )
     atlassian_site_url: str = ''

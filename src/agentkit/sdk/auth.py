@@ -13,18 +13,21 @@ class AuthManager:
     def __init__(self, settings: Settings | None = None, http: httpx.Client | None = None):
         self._s = settings or get_settings()
         self._http = http or httpx.Client(timeout=20)
-        if not self._s.token_encryption_key:
+        self._fernet = Fernet(self._s.token_encryption_key.encode()) if self._s.token_encryption_key else None
+
+    def _state_fernet(self) -> Fernet:
+        if self._fernet is None:
             raise InvalidStateError('TOKEN_ENCRYPTION_KEY is not set (used to sign OAuth state).')
-        self._fernet = Fernet(self._s.token_encryption_key.encode())
+        return self._fernet
 
     # Authorize
     def build_authorize_url(self) -> str:
-        state = self._fernet.encrypt(json.dumps({'iat': time.time(), 'nonce': time.time_ns()}).encode()).decode()
+        state = self._state_fernet().encrypt(json.dumps({'iat': time.time(), 'nonce': time.time_ns()}).encode()).decode()
         params = {
-            'audience': 'ap.atlassian.com',
+            'audience': 'api.atlassian.com',
             'client_id': self._s.atlassian_client_id,
             'scope': self._s.atlassian_scopes,
-            'redirect_url': self._s.atlassian_redirect_uri,
+            'redirect_uri': self._s.atlassian_redirect_uri,
             'state': state,
             'response_type': 'code',
             'prompt': 'consent'
@@ -33,7 +36,7 @@ class AuthManager:
 
     def verify_state(self, state: str) -> None:
         try:
-            payload = json.loads(self._fernet.decrypt(state.encode()).decode())
+            payload = json.loads(self._state_fernet().decrypt(state.encode()).decode())
         except (InvalidToken, json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise InvalidStateError('OAuth state signature invalid.') from exc
         if time.time() - float(payload.get('iat', 0)) > self._s.oauth_state_ttl_seconds:

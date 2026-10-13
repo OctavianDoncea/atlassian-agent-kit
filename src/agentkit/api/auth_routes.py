@@ -1,9 +1,10 @@
 """OAuth connect flow"""
 from __future__ import annotations
+import base64
 import secrets
+from urllib.parse import parse_qs, urlsplit
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse, HTMLResponse
-from sqlalchemy.orm import Session
 from agentkit.config import get_settings
 from agentkit.db.models import Integration
 from agentkit.db.session import SessionLocal
@@ -13,13 +14,33 @@ from agentkit.sdk.token import DbTokenStore
 
 router = APIRouter(prefix='/auth/atlassian', tags=['auth'])
 
+def _cookie_state(state: str) -> str:
+    """Fernet state contains '=', which is not a legal cookie octet."""
+    return base64.urlsafe_b64encode(state.encode()).decode().rstrip('=')
+
+def _read_cookie_state(value: str) -> str:
+    if not value:
+        return ''
+    try:
+        padded = value + ('=' * (-len(value) % 4))
+        return base64.urlsafe_b64decode(padded.encode()).decode()
+    except (ValueError, UnicodeDecodeError):
+        return ''
+
 @router.get('/authorize')
 def authorize() -> RedirectResponse:
     am = AuthManager()
     url = am.build_authorize_url()
-    state = url.split('state=', 1)[1]
+    state = parse_qs(urlsplit(url).query)['state'][0]
     resp = RedirectResponse(url)
-    resp.set_cookie('oauth_state', state, httponly=True, samesite='lax', max_age=get_settings().oauth_state_ttl_seconds)
+    resp.set_cookie(
+        'oauth_state',
+        _cookie_state(state),
+        httponly=True,
+        samesite='lax',
+        path='/',
+        max_age=get_settings().oauth_state_ttl_seconds,
+    )
 
     return resp
 
@@ -30,7 +51,7 @@ def callback(request: Request, code: str = '', state: str = '', error: str = '')
     if not code or not state:
         raise HTTPException(status_code=400, detail='missing code/state')
 
-    cookie_state = request.cookies.get('oauth_state', '')
+    cookie_state = _read_cookie_state(request.cookies.get('oauth_state', ''))
     if not cookie_state or not secrets.compare_digest(cookie_state, state):
         raise HTTPException(status_code=400, detail='state cookie mismatch (possible CSRF)')
 

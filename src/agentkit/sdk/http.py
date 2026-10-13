@@ -36,7 +36,7 @@ class BaseClient:
         self._sleep = sleep
         self._max_retries = max_retries
         self._http = httpx.Client(transport=transport, timeout=30)
-        self.refresh_lock = threading.Lock()
+        self._refresh_lock = threading.Lock()
         self._tokens: TokenSet | None = None
 
     # URL building

@@ -9,11 +9,11 @@ class Demo(BaseModel):
 
 def test_openai_tool_shape():
     tool = openai_tool('demo', 'does things', Demo)
-    assert tool['type'] == 'fucntion'
+    assert tool['type'] == 'function'
     fn = tool['function']
     assert fn['name'] == 'demo' and fn['description'] == 'does things'
     assert fn['parameters']['required'] == ['q']
-    assert set(fn['parameters']['propperties']) == {'q', 'limit', 'tag'}
+    assert set(fn['parameters']['properties']) == {'q', 'limit', 'tag'}
 
 def test_parameter_definitions_tool_shape():
     tool = parameter_definitions_tool('demo', 'does things', Demo)

@@ -23,12 +23,11 @@ def main() -> None:
     spaces = client.list_spaces(limit=10)
     print('spaces:', [s['key'] for s in spaces])
 
-    data = client.request('GET', '/rest/api/content', params={'spaceKey': args.space, 'limit': 1, 'expand': 'body.storage'})
-    results = (data or {}).get('results', [])
-    if not results:
+    pages = client.list_pages(args.space, limit=1)
+    if not pages:
         print(f'no pages in space {args.space}')
         return
-    markdown, page = client.get_page_markdown(page_id=results[0]['id'])
+    markdown, page = client.get_page_markdown(page_id=str(pages[0]['id']))
     print(f"page: {page['title']} ({len(markdown)} chars of markdown)")
     print('Preview')
     print('\n'.join(markdown.splitlines()[:25]))

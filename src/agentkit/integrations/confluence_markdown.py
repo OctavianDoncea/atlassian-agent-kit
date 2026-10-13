@@ -4,6 +4,18 @@ from markdownify import markdownify as md
 
 _PANEL_LABELS = {'info': 'Note', 'note': 'Note', 'warning': 'Warning', 'tip': 'Tip'}
 
+def _fence_language(el) -> str:
+    code = el.find('code')
+    if code is None:
+        return ''
+    classes = code.get('class') or []
+    if isinstance(classes, str):
+        classes = classes.split()
+    for cls in classes:
+        if cls.startswith('language-'):
+            return cls[len('language-'):]
+    return ''
+
 def _convert_code_macros(soup: BeautifulSoup) -> None:
     for macro in soup.find_all('ac:structured-macro'):
         name = macro.get('ac:name')
@@ -13,8 +25,8 @@ def _convert_code_macros(soup: BeautifulSoup) -> None:
             pre = soup.new_tag('pre')
             code = soup.new_tag('code')
 
-            if lang_tag:
-                code['class'] = lang_tag.get_text(strip=True)
+            if lang_tag and lang_tag.get_text(strip=True):
+                code['class'] = [f"language-{lang_tag.get_text(strip=True)}"]
 
             code.string = body.get_text() if body else ''
             pre.append(code)
@@ -45,7 +57,7 @@ def _convert_links(soup: BeautifulSoup) -> None:
     for link in soup.find_all('ac:link'):
         page = link.find('ri:page')
         url_tag = link.find('ri:url')
-        body = link.find('ac:plain-text-body-link') or link.find('ac:link-body')
+        body = link.find('ac:plain-text-link-body') or link.find('ac:link-body')
 
         if url_tag is not None:
             href = url_tag.get('ri:value', '')
@@ -80,7 +92,7 @@ def storage_to_markdown(html: str) -> str:
     _convert_images(soup)
     _strip_leftovers(soup)
 
-    text = md(str(soup), heading_style='ATX', bullets='-')
+    text = md(str(soup), heading_style='ATX', bullets='-', code_language_callback=_fence_language)
 
     out: list[str] = []
     for line in (ln.rstrip() for ln in text.splitlines()):

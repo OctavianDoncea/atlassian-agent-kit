@@ -1,8 +1,8 @@
 from __future__ import annotations
 import html
 import re
+from urllib.parse import parse_qs, urlsplit
 from pydantic import BaseModel, Field
-from sqlalchemy.util.cython import returns
 from agentkit.errors import PageNotFoundError
 from agentkit.integrations.confluence_markdown import storage_to_markdown
 from agentkit.sdk.http import BaseClient
@@ -24,7 +24,7 @@ class CreatePageInput(BaseModel):
 
 
 def markdown_to_storage(markdown: str) -> str:
-    blocks: [b.strip() for b in re.split(r"\n\s*\n", markdown or '') if b.strip()]
+    blocks = [b.strip() for b in re.split(r"\n\s*\n", markdown or '') if b.strip()]
     out: list[str] = []
 
     for block in blocks:
@@ -46,20 +46,50 @@ def markdown_to_storage(markdown: str) -> str:
 class ConfluenceClient(BaseClient):
     product = 'confluence'
 
+    def _collect(self, path: str, params: dict | None = None, limit: int = 25) -> list[dict]:
+        items: list[dict] = []
+        cursor: str | None = None
+        while len(items) < limit:
+            query = dict(params or {})
+            query['limit'] = min(250, limit - len(items))
+            if cursor:
+                query['cursor'] = cursor
+            data = self.request('GET', path, params=query) or {}
+            batch = data.get('results', [])
+            items.extend(batch)
+            next_link = (data.get('_links') or {}).get('next')
+            if not batch or not next_link:
+                break
+            cursor = (parse_qs(urlsplit(next_link).query).get('cursor') or [None])[0]
+            if not cursor:
+                break
+        return items[:limit]
+
+    def _space_id(self, space_key: str) -> str:
+        data = self.request('GET', '/api/v2/spaces', params={'keys': space_key, 'limit': 1}) or {}
+        results = data.get('results', [])
+        if not results:
+            raise PageNotFoundError(f'No Confluence space {space_key!r}')
+        return str(results[0]['id'])
+
     def list_spaces(self, limit: int = 25) -> list[dict]:
-        return list(self.paginate('/rest/api/space', params={'type': 'global'}, items_key='results', start_param='start', limit_param='limit', limit=limit, max_items=limit))
+        return self._collect('/api/v2/spaces', {'type': 'global'}, limit)
+
+    def list_pages(self, space_key: str, limit: int = 25) -> list[dict]:
+        return self._collect(f'/api/v2/spaces/{self._space_id(space_key)}/pages', {'status': 'current'}, limit)
 
     def find_page(self, space_key: str, title: str) -> dict:
-        data = self.request('GET', '/rest/api/content', params={'spaceKey': space_key, 'title': title, 'expand': 'body.storage,version.space'})
-        results = (data or {}).get('results', [])
-
+        data = self.request(
+            'GET', f'/api/v2/spaces/{self._space_id(space_key)}/pages',
+            params={'title': title, 'body-format': 'storage', 'status': 'current', 'limit': 1},
+        ) or {}
+        results = data.get('results', [])
         if not results:
             raise PageNotFoundError(f'No page titled {title!r} in space {space_key!r}')
-
         return results[0]
 
-    def get_page(self, self_id: str) -> dict:
-        data = self.request('GET', f'/rest/api/content/{self_id}', params={'expand': 'body.storage,version.space'})
+    def get_page(self, page_id: str) -> dict:
+        data = self.request('GET', f'/api/v2/pages/{page_id}', params={'body-format': 'storage'})
         assert data is not None
         return data
 
@@ -69,12 +99,13 @@ class ConfluenceClient(BaseClient):
 
     def create_page(self, inp: CreatePageInput) -> dict:
         data = self.request(
-            'POST', '/rest/api/content',
+            'POST', '/api/v2/pages',
             json={
-                'space': {'key': inp.space_key},
+                'spaceId': self._space_id(inp.space_key),
+                'status': 'current',
                 'title': inp.title,
-                'body': {'storage': {'value': markdown_to_storage(inp.markdown), 'representation': 'storage'}}
-            }
+                'body': {'representation': 'storage', 'value': markdown_to_storage(inp.markdown)},
+            },
         )
         assert data is not None
         return data

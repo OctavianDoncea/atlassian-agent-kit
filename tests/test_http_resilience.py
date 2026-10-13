@@ -96,3 +96,22 @@ def test_transition_guard_rejects_invalid_transition():
     assert 'Start Progress' in str(exc.value)
 
     client.transition_issue('ENG-4', 'start progress')
+
+def test_search_issues_uses_jql_endpoint_and_page_token():
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == 'POST'
+        assert request.url.path.endswith('/rest/api/3/search/jql')
+        body = json.loads(request.content)
+        bodies.append(body)
+        if 'nextPageToken' not in body:
+            return httpx.Response(200, json={'issues': [{'key': 'ENG-1'}], 'nextPageToken': 'page-2', 'isLast': False})
+        assert body['nextPageToken'] == 'page-2'
+        return httpx.Response(200, json={'issues': [{'key': 'ENG-2'}], 'isLast': True})
+
+    client = JiraClient(auth_mode='basic', transport=httpx.MockTransport(handler), settings=_settings())
+    issues = client.search_issues('project = ENG', fields=['summary', 'status'], max_results=10)
+    assert [i['key'] for i in issues] == ['ENG-1', 'ENG-2']
+    assert bodies[0]['fields'] == ['summary', 'status']
+    assert bodies[0]['maxResults'] == 10

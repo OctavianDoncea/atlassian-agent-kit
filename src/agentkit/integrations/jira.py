@@ -32,13 +32,24 @@ class JiraClient(BaseClient):
     product = 'jira'
 
     def search_issues(self, jql: str, fields: list[str] | None = None, max_results: int = 200) -> list[dict]:
-        params: dict = {'jql': jql}
-        if fields:
-            params['fields'] = ','.join(fields)
-        return list(self.paginate('/rest/api/3/search', params=params, items_key='issues', start_params='startAt', limit_param='maxResults', limit=50, max_items=max_results))
+        issues: list[dict] = []
+        token: str | None = None
+        while len(issues) < max_results:
+            body: dict = {'jql': jql, 'maxResults': min(50, max_results - len(issues))}
+            if fields:
+                body['fields'] = fields
+            if token:
+                body['nextPageToken'] = token
+            data = self.request('POST', '/rest/api/3/search/jql', json=body) or {}
+            batch = data.get('issues', [])
+            issues.extend(batch)
+            token = data.get('nextPageToken')
+            if not batch or not token or data.get('isLast'):
+                break
+        return issues[:max_results]
 
     def get_issue(self, issue_key: str, fields: list[str] | None = None) -> dict:
-        params: {'fields': ','.join(fields)} if fields else None
+        params = {'fields': ','.join(fields)} if fields else None
         data = self.request('GET', f'/rest/api/3/issue/{issue_key}', params=params)
         assert data is not None
         return data

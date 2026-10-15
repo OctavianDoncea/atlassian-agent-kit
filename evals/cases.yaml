@@ -1,0 +1,35 @@
+suite: "Atlassian Core Tools"
+version: "1.0"
+description: "Baseline evaluations for Jira and Confluence tool selection and parameter extraction."
+
+cases:
+  - id: "jira_search_high_priority"
+    prompt: "Find all high priority bugs in the ENG project."
+    expected_tool: "search_issues"
+    expected_params:
+      jql: "project = ENG AND priority = High AND issuetype = Bug"
+    judge_mode: "semantic_jql"
+
+  - id: "confluence_fetch_page"
+    prompt: "Get the markdown content for the page title 'Rollout plan' in the Engineering Wiki (EW) space."
+    expected_tool: "get_page_content"
+    expected_params:
+      space_key: "EW"
+      title: "Rollout plan"
+    judge_mode: "exact_match"
+
+  - id: "jira_create_bug"
+    prompt: "Create a high priority bug in the ENG project with the summary 'Login page returns 500'"
+    expected_tool: "create_issue"
+    expected_params:
+      project_key: "ENG"
+      summary: "Login page returns 500"
+      issue_type: "Bug"
+      priority: "High"
+    judge_mode: "subset_match"
+
+  - id: "confluence_list_spaces"
+    prompt: "What spaces are available in Confluence?"
+    expected_tool: "list_spaces"
+    expected_params: {}
+    judge_mode: "exact_match"

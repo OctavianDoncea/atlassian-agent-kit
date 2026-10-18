@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     atlassian_api_token: str = ''
     groq_api_key: str = ''
     llm_model: str = 'openai/gpt-oss-120b'
+    judge_llm_model: str = 'openai/gpt-oss-20b'
+    llm_base_url: str = ''
     app_env: str = 'dev'
     token_encryption_key: str = ''
     oauth_state_ttl_seconds: int = 600

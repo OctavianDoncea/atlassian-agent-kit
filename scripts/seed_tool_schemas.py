@@ -12,7 +12,7 @@ def main() -> None:
         db.query(ToolSchema).filter_by(is_active=True).update({ToolSchema.is_active: False})
 
         for name, (model, desc) in JIRA_TOOL_MODELS.items():
-            schema = openai_tool(name, model, desc)
+            schema = openai_tool(name, desc, model)
             db.add(ToolSchema(
                 integration_id=jira_int.id, tool_name=name, version=1, description_variant='baseline',
                 description=desc, json_schema=schema, is_active=True

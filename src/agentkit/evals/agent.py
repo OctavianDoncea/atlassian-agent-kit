@@ -39,7 +39,7 @@ def invoke_agent(prompt: str, model: str | None = None) -> AgentResponse:
     try:
         response = client.chat.completions.create(
             model=model,
-            mesages=[{'role': 'user', 'content': prompt}],
+            messages=[{'role': 'user', 'content': prompt}],
             tools=tools,
             tool_choice='auto',
             temperature=0.0

@@ -32,7 +32,7 @@ def run_suite(suite_name: str = 'default', dry_run: bool = False) -> dict[str, A
             prompt = case['prompt']
             expected_tool = case.get('expected_tool')
 
-            print(f'Running: {case.id}...', end='', flush=True)
+            print(f'Running: {case_id}...', end='', flush=True)
 
             start_time = time.time()
             if dry_run:
@@ -49,7 +49,7 @@ def run_suite(suite_name: str = 'default', dry_run: bool = False) -> dict[str, A
                 last_run = db.query(EvalRun).filter(EvalRun.prompt == prompt, EvalRun.tool_schema_id == get_active_tool_schema_id(db, expected_tool)).order_by(EvalRun.created_at.desc()).first()
                 if last_run and last_run.passed:
                     is_regression = True
-                    results['resgressions'].append(case_id)
+                    results['regressions'].append(case_id)
 
             tool_schema_id = get_active_tool_schema_id(db, expected_tool or '')
             if tool_schema_id and not dry_run:
@@ -63,7 +63,6 @@ def run_suite(suite_name: str = 'default', dry_run: bool = False) -> dict[str, A
                     passed = judge_result.passed,
                     judge_provider = 'groq/openai/gpt-oss-20b' if case.get('judge_mode') == 'semantic_jql' else 'deterministic',
                     judge_reasoning = judge_result.reasoning,
-                    duration_ms = duration_ms,
                 )
                 db.add(run)
 

@@ -21,8 +21,10 @@ def exact_match(expected: dict, actual: dict) -> JudgeResult:
 
 def subset_match(expected: dict, actual: dict) -> JudgeResult:
     for k, v in expected.items():
-        if not k in actual or actual[k] != v:
-            return JudgeResult(False, f"Missing or mismatched key '{k}'. Expected {v}, got {actual[k]}.")
+        if k not in actual:
+            return JudgeResult(False, f"Missing key '{k}'. Expected {v}.")
+        if actual[k] != v:
+            return JudgeResult(False, f"Mismatched key '{k}'. Expected {v}, got {actual[k]}.")
 
     return JudgeResult(True, 'All expected parameters present.')
 

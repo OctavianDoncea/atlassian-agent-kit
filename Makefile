@@ -1,4 +1,4 @@
-.PHONY: install up down migrate revision seed verify test lint
+.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen
 
 install:
 	pip install -e ".[dev]"

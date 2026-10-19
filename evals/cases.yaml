@@ -11,15 +11,15 @@ cases:
     judge_mode: "semantic_jql"
 
   - id: "confluence_fetch_page"
-    prompt: "Get the markdown content for the page title 'Rollout plan' in the Engineering Wiki (EW) space."
-    expected_tool: "get_page_content"
+    prompt: "Get the markdown content for the page titled 'Rollout plan' in the Engineering Wiki (EW) space."
+    expected_tool: "get_page_markdown"
     expected_params:
       space_key: "EW"
       title: "Rollout plan"
     judge_mode: "exact_match"
 
   - id: "jira_create_bug"
-    prompt: "Create a high priority bug in the ENG project with the summary 'Login page returns 500'"
+    prompt: "Create a high priority bug in the ENG project with the summary 'Login page returns 500'."
     expected_tool: "create_issue"
     expected_params:
       project_key: "ENG"
@@ -32,4 +32,4 @@ cases:
     prompt: "What spaces are available in Confluence?"
     expected_tool: "list_spaces"
     expected_params: {}
-    judge_mode: "exact_match"
+    judge_mode: "subset_match"

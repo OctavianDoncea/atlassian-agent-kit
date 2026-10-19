@@ -1,0 +1,42 @@
+search_issues:
+  - name: baseline
+    description: "Search Jira issues using a JQL query. Returns matching issues with their fields."
+
+  - name: minimal
+    description: "Search Jira issues."
+
+  - name: detailed
+    description: >-
+      Search Jira issues by writing a JQL query string. Always scope by project
+      (e.g. project = ENG). Translate user filters into JQL clauses: issuetype
+      (Bug, Task, Story), priority (Highest, High, Medium, Low), status
+      ('To Do', 'In Progress', Done), assignee = currentUser() for "my" or
+      "assigned to me". Add ORDER BY created DESC when the user says "recent"
+      or "latest". Example: project = ENG AND issuetype = Bug AND priority = High
+
+  - name: contextual
+    description: >-
+      Use this tool whenever the user asks to find, list, count, or investigate
+      EXISTING Jira issues or tickets. Convert their natural-language filters
+      into one JQL query. Do NOT use this tool to create, edit, or move issues;
+      other tools handle those actions.
+
+create_issue:
+  - name: baseline
+    description: "Create a new Jira issue in a project."
+
+  - name: minimal
+    description: "Create issue."
+
+  - name: detailed
+    description: >-
+      Create a new Jira issue. project_key is the short project code (e.g. ENG).
+      summary is a one-line title. issue_type must be Task, Bug, or Story
+      (default Task). priority must be Highest, High, Medium, or Low; set it only
+      when the user states it explicitly. description is optional plain text.
+
+  - name: contextual
+    description: >-
+      Use this tool when the user asks to report, log, track, or open a new bug,
+      task, or feature request in Jira. Extract the title into summary and map
+      words like "broken", "crash", or "error" to issue_type Bug.

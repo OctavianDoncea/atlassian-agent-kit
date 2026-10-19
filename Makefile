@@ -32,3 +32,9 @@ keygen:
 
 run:
 	uvicorn agentkit.api.main:app --reload --port 8000
+
+evals:
+	python scripts/run_evals.py
+
+evals-dry-run:
+	python scripts/run_evals.py --dry-run

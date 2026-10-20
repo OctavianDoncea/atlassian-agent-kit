@@ -38,3 +38,6 @@ evals:
 
 evals-dry-run:
 	python scripts/run_evals.py --dry-run
+
+tune:
+	python scripts/run_tuning.py --tool $(or $(tool),search_issues) --trials $(or $(trials),3) --temperature $(or $(temp),0.7)

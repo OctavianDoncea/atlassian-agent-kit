@@ -71,7 +71,7 @@ def register_variant(db: Session, tool_name: str, variant: dict, model: type) ->
 
         return row
 
-    max_version = db.query(func.max(ToolSchema.version)).filter_by(tool_name=tool_name).scalar_one_or_none() or 0
+    max_version = db.query(func.max(ToolSchema.version)).filter_by(tool_name=tool_name).scalar() or 0
     int_name = 'jira' if tool_name in JIRA_TOOL_MODELS else 'confluence'
     integration = db.query(Integration).filter_by(name=int_name).one()
     row = ToolSchema(
@@ -117,8 +117,8 @@ def tune_tool(
                 for trial in range(trials):
                     start = time.time()
                     if dry_run:
-                        fail = {trial + vi} % 4 == 0
-                        resp = AgentResponse(tool_name=_wrong_tool(case['expected_tool'] if fail else case['expected_tool'], arguments=case.get('expected_params', {})))
+                        fail = (trial + vi) % 4 == 0
+                        resp = AgentResponse(tool_name=_wrong_tool(case['expected_tool']) if fail else case['expected_tool'], arguments=case.get('expected_params', {}))
                     else:
                         resp = invoke_agent(case['prompt'], temperature=temperature, tools=tools)
                     duration_ms = int((time.time() - start) * 1000)
@@ -127,7 +127,7 @@ def tune_tool(
                     res.trials += 1
                     res.duration_ms.append(duration_ms)
                     if judge.passed:
-                        res.passed += 1
+                        res.passes += 1
                     else:
                         res.failure_reasons.append(f"{case['id']}#{trial}: {judge.reasoning}")
 
@@ -142,7 +142,6 @@ def tune_tool(
                             passed = judge.passed,
                             judge_provider = 'dry-run' if dry_run else ('llm-judge' if case.get('judge_mode') == 'semantic_jql' else 'deterministic'),
                             judge_reasoning = judge.reasoning,
-                            duration_ms = duration_ms
                         ))
 
             results.append(res)
@@ -181,7 +180,7 @@ def promote(db: Session, tool_name: str, winner: VariantResult) -> None:
     # Deactivate all schemas for the tool, activate the winner (caller commits).
     db.query(ToolSchema).filter_by(tool_name=tool_name).update({ToolSchema.is_active: False})
     if winner.schema_id:
-        row = db.query(ToolSchema).filter_by(i=UUID(winner.schema_id)).one()
+        row = db.query(ToolSchema).filter_by(id=UUID(winner.schema_id)).one()
         row.is_active = True
 
 def write_report(tool_name: str, results: list[VariantResult], winner: VariantResult, reason: str, out_dir: str = 'reports') -> tuple[Path, Path]:

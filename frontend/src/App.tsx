@@ -1,122 +1,107 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { api } from './api';
+import type { EvalRun, Overview, Regression, RunState, TimeseriesPoint, VariantStat } from './api';
+import Cards from './components/Cards';
+import { PassRateChart, VariantChart } from './components/Charts';
+import RunsTable from './components/RunsTable';
+import SchemaBrowser from './components/SchemaBrowser';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [series, setSeries] = useState<TimeseriesPoint[]>([]);
+  const [stats, setStats] = useState<VariantStat[]>([]);
+  const [runs, setRuns] = useState<EvalRun[]>([]);
+  const [regs, setRegs] = useState<Regression[]>([]);
+  const [runState, setRunState] = useState<RunState | null>(null);
+  const [tool, setTool] = useState('search_issues');
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      const [o, s, t, r, g, rs] = await Promise.all([
+        api.overview(), api.timeseries(14), api.tools(),
+        api.evals(100), api.regressions(), api.runState(),
+      ]);
+      setOverview(o); setSeries(s); setStats(t); setRuns(r); setRegs(g); setRunState(rs);
+      setError(null);
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const id = setInterval(refresh, 10_000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  const tools = useMemo(() => Array.from(new Set(stats.map((s) => s.tool_name))), [stats]);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div className="min-h-screen bg-slate-900 p-6 text-slate-100">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+          <h1 className="text-2xl font-bold">AgentKit Eval Observatory</h1>
+          <p className="text-sm text-slate-400">Agentic integration evals, tuning variants & regression alerts</p>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+        <div className="flex items-center gap-3">
+          {runState?.running && (
+            <span className="animate-pulse rounded bg-amber-500/20 px-2 py-1 text-amber-400">eval run in progress...</span>
+          )}
+          <button
+            className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium hover:bg-emerald-500"
+            onClick={() => api.triggerRun(false).then(refresh).catch((e) => setError(String(e)))}
+          >
+            Run evals
+          </button>
+          <button className="rounded bg-slate-700 px-3 py-1.5 text-sm hover:bg-slate-600" onClick={refresh}>
+            Refresh
+          </button>
+        </div>
+      </header>
+
+      {error && (
+        <div className="mb-4 rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-300">
+          {error}. Is the backend up? (`make run`)
+        </div>
+      )}
+      {regs.length > 0 && (
+        <div className="mb-4 rounded border border-red-700 bg-red-900/30 p-3 text-sm text-red-300">
+          {regs.length} regression(s) detected. Most recent: <b>{regs[0].tool_name}</b>  “{regs[0].prompt}”
+        </div>
+      )}
+
+      <Cards o={overview} />
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <section className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Pass rate, last 14 days</h2>
+          <PassRateChart data={series} />
+        </section>
+        <section className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Description variants, pass rate</h2>
+            <select
+              value={tool}
+              onChange={(e) => setTool(e.target.value)}
+              className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-sm"
+            >
+              {(tools.length ? tools : ['search_issues']).map((t) => (<option key={t}>{t}</option>))}
+            </select>
+          </div>
+          <VariantChart stats={stats} tool={tool} />
+        </section>
+      </div>
+
+      <section className="mt-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Latest eval runs</h2>
+        <RunsTable runs={runs} />
       </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
+      <section className="mt-6">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Tool schema browser</h2>
+        <SchemaBrowser stats={stats} tool={tool} />
       </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    </div>
+  );
 }
-
-export default App

@@ -65,7 +65,7 @@ def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actua
 
 def evaluate_case(case: dict, actual_tool: str | None, actual_params: dict) -> JudgeResult:
     if actual_tool != case.get('expected_tool'):
-        return JudgeResult(False, f'Wrong tool selected. Expected {case.get('expected_tool')}, got {actual_tool}.')
+        return JudgeResult(False, f"Wrong tool selected. Expected {case.get('expected_tool')}, got {actual_tool}.")
 
     expected_params = case.get('expected_params', {})
     mode = case.get('judge_mode', 'exact_match')

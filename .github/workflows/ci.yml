@@ -48,4 +48,5 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://test:test@localhost:5432/test
           TOKEN_ENCRYPTION_KEY: ZmFrZV9rZXlfZm9yX2NpX3Rlc3RpbmdfMTIzNDU2Nzg5MA==
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         run: python scripts/run_evals.py --dry-run

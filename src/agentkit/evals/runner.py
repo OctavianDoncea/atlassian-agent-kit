@@ -63,6 +63,7 @@ def run_suite(suite_name: str = 'default', dry_run: bool = False) -> dict[str, A
                     passed = judge_result.passed,
                     judge_provider = 'groq/openai/gpt-oss-20b' if case.get('judge_mode') == 'semantic_jql' else 'deterministic',
                     judge_reasoning = judge_result.reasoning,
+                    duration_ms = duration_ms,
                 )
                 db.add(run)
 

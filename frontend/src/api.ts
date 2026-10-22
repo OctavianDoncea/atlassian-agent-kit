@@ -1,7 +1,7 @@
 export interface EvalRun {
     id: string; tool_schema_id: string; created_at: string; tool_name: string; variant: string | null; prompt: string; expected_tool: string;
     expected_params: Record<string, unknown> | null; actual_tool: string | null; actual_params: Record<string, unknown> | null;
-    passed: boolean; judge_provider: string | null; judge_reasoning: string | null; duration_seconds: number | null;
+    passed: boolean; judge_provider: string | null; judge_reasoning: string | null; duration_ms: number | null;
 }
 
 export interface VariantStat {

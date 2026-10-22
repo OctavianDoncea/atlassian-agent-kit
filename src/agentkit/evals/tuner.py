@@ -142,6 +142,7 @@ def tune_tool(
                             passed = judge.passed,
                             judge_provider = 'dry-run' if dry_run else ('llm-judge' if case.get('judge_mode') == 'semantic_jql' else 'deterministic'),
                             judge_reasoning = judge.reasoning,
+                            duration_ms = duration_ms,
                         ))
 
             results.append(res)

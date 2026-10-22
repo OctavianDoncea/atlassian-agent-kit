@@ -39,6 +39,7 @@ export default function RunsTable({ runs }: { runs: EvalRun[] }) {
                                     <span className="rounded bg-red-500/20 px-2 py-0.5 text-red-400">FAIL</span>
                                 )}
                             </td>
+                            <td className="px-3 py-2 text-slate-400">{r.duration_ms ?? '-'}</td>
                         </tr>
                     ))}
                 </tbody>

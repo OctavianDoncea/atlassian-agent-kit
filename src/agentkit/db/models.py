@@ -62,6 +62,7 @@ class EvalRun(Base):
     passed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     judge_provider: Mapped[str | None] = mapped_column(String(120))
     judge_reasoning: Mapped[str | None] = mapped_column(Text)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     tool_schema: Mapped[ToolSchema] = relationship(back_populates='eval_runs')

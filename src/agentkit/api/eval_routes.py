@@ -39,7 +39,7 @@ def _fetch_runs(db: Session, limit: int = 2000, asc: bool = False, tool: str | N
     if passed is not None:
         q = q.filter(EvalRun.passed.is_(passed))
     
-    q = q.order_by(EvalRun.created_at.asc() if asc else EvalRun.created_at.desc().limit(limit))
+    q = q.order_by(EvalRun.created_at.asc() if asc else EvalRun.created_at.desc()).limit(limit)
     return _map_rows(q.all())
 
 def detect_regressions(runs_asc: list[EvalRunOut]) -> list[RegressionOut]:
@@ -146,7 +146,7 @@ def trigger_run(background: BackgroundTasks, dry_run: bool = False) -> RunStateO
     def _job() -> None:
         try:
             summary = run_suite(dry_run=dry_run)
-            _run_state['last_summary'] = False
+            _run_state['last_summary'] = summary
         finally:
             _run_state['running'] = False
             _run_state['finished_at'] = datetime.now(timezone.utc)

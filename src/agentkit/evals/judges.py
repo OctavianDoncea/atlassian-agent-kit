@@ -63,7 +63,7 @@ def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actua
         logger.error(f'Judge LLM failed: {e}')
         return JudgeResult(False, f'Judge LLM error: {e}')
 
-def evaluate_case(case: dict, actual_tool: str | None, actual_params: dict) -> JudgeResult:
+def evaluate_case(case: dict, actual_tool: str | None, actual_params: dict, dry_run: bool = False) -> JudgeResult:
     if actual_tool != case.get('expected_tool'):
         return JudgeResult(False, f"Wrong tool selected. Expected {case.get('expected_tool')}, got {actual_tool}.")
 
@@ -75,6 +75,8 @@ def evaluate_case(case: dict, actual_tool: str | None, actual_params: dict) -> J
     if mode == 'subset_match':
         return subset_match(expected_params, actual_params)
     if mode == 'semantic_jql':
+        if dry_run:
+            return exact_match(expected_params, actual_params)
         return semantic_judge(case.get('prompt', ''), case['expected_tool'], expected_params, actual_tool, actual_params)
 
     return JudgeResult(False, f'Unknown judge mode: {mode}')

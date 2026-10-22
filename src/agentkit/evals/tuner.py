@@ -123,7 +123,7 @@ def tune_tool(
                         resp = invoke_agent(case['prompt'], temperature=temperature, tools=tools)
                     duration_ms = int((time.time() - start) * 1000)
 
-                    judge = evaluate_case(case, resp.tool_name, resp.arguments)
+                    judge = evaluate_case(case, resp.tool_name, resp.arguments, dry_run=dry_run)
                     res.trials += 1
                     res.duration_ms.append(duration_ms)
                     if judge.passed:

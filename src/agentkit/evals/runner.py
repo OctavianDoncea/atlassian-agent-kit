@@ -41,7 +41,7 @@ def run_suite(suite_name: str = 'default', dry_run: bool = False) -> dict[str, A
                 agent_resp = invoke_agent(prompt)
             duration_ms = int((time.time() - start_time) * 1000)
 
-            judge_result = evaluate_case(case, agent_resp.tool_name, agent_resp.arguments)
+            judge_result = evaluate_case(case, agent_resp.tool_name, agent_resp.arguments, dry_run=dry_run)
 
             # Check for regressions
             is_regression = False

@@ -35,3 +35,14 @@ def test_evaluate_case_dry_run_simulation():
     }
     res = evaluate_case(case, 'list_spaces', {'limit': 25})
     assert res.passed is True
+
+def test_semantic_jql_dry_run_skips_groq():
+    case = {
+        'expected_tool': 'search_issues',
+        'expected_params': {'jql': 'project = ENG'},
+        'judge_mode': 'semantic_jql',
+        'prompt': 'Find issues',
+    }
+    res = evaluate_case(case, 'search_issues', {'jql': 'project = ENG'}, dry_run=True)
+    assert res.passed is True
+    assert 'GROQ_API_KEY' not in res.reasoning

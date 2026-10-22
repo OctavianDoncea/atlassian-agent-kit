@@ -1,4 +1,4 @@
-.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen
+.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web
 
 install:
 	pip install -e ".[dev]"
@@ -41,3 +41,6 @@ evals-dry-run:
 
 tune:
 	python scripts/run_tuning.py --tool $(or $(tool),search_issues) --trials $(or $(trials),3) --temperature $(or $(temp),0.7)
+
+web:
+	cd frontend && npm run dev

@@ -35,17 +35,17 @@ jobs:
 
       - name: Run database migrations
         env:
-          DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/test
+          DATABASE_URL: postgresql+psycopg://test:test@localhost:5432/test
         run: alembic upgrade head
 
       - name: Run pytest suite
         env:
-          DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/test
+          DATABASE_URL: postgresql+psycopg://test:test@localhost:5432/test
           TOKEN_ENCRYPTION_KEY: ZmFrZV9rZXlfZm9yX2NpX3Rlc3RpbmdfMTIzNDU2Nzg5MA== # Base64 dummy key
         run: pytest -v
 
       - name: Run Eval Framework (Dry Run)
         env:
-          DATABASE_URL: postgresql+psycopg2://test:test@localhost:5432/test
+          DATABASE_URL: postgresql+psycopg://test:test@localhost:5432/test
           TOKEN_ENCRYPTION_KEY: ZmFrZV9rZXlfZm9yX2NpX3Rlc3RpbmdfMTIzNDU2Nzg5MA==
         run: python scripts/run_evals.py --dry-run

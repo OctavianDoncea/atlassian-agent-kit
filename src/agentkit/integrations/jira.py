@@ -1,8 +1,10 @@
 """Jira Cloud connector + LLM tool input models."""
+import asyncio
 from __future__ import annotations
 from pydantic import BaseModel, Field
 from agentkit.errors import InvalidTransitionError
 from agentkit.sdk.http import BaseClient
+from agentkit.sdk.http_async import AsyncBaseClient
 
 class SearchIssuesInput(BaseModel):
     jql: str = Field(description="JQL query string, e.g. 'project = ENG AND status \"to Do\" ORDER BY created DESC'")
@@ -85,6 +87,28 @@ class JiraClient(BaseClient):
             names = ', '.join(t['name'] for t in allowed) or 'none'
             raise InvalidTransitionError(f"Issue {issue_key}: transition '{transition}' is not allowed from its current status. Allowed: {names}")
         self.request('POST', f'/rest/api/3/issue/{issue_key}/transitions', json={'transition': {'id': match['id']}})
+
+
+class AsyncJiraClient(AsyncBaseClient):
+    product = 'jira'
+
+    async def search_issues(self, jql: str, fields: list[str] | None = None, max_results: int = 200) -> list[dict]:
+        params: dict = {'jql': jql}
+        if fields:
+            params['fields'] = ','.join(fields)
+
+        return [i async for i in self.paginate(
+            '/rest/api/3/search', params=params, items_key='issues', start_param='startAt', limit_param='maxResults', limit=50, max_items=max_results
+        )]
+
+    async def get_issue(self, issue_key: str, fields: list[str] | None = None) -> dict:
+        params = {'fields': ','.join(fields)} if fields else None
+        data = await self.request('GET', f'/rest/api/3/issue/{issue_key}', params=params)
+        assert data is not None
+        return data
+
+    async def batch_get_issues(self, issue_keys: list[str]) -> list[dict]:
+        return list(await asyncio.gather(*(self.get_issue(k) for k in issue_keys)))
 
 
 JIRA_TOOL_MODELS: dict[str, tuple[type(BaseModel), str]] = {

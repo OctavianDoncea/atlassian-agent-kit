@@ -1,11 +1,14 @@
 from __future__ import annotations
 import html
 import re
+import asyncio
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from pydantic import BaseModel, Field
 from agentkit.errors import PageNotFoundError
 from agentkit.integrations.confluence_markdown import storage_to_markdown
 from agentkit.sdk.http import BaseClient
+from agentkit.sdk.http_async import AsyncBaseClient
 
 class ListSpacesInput(BaseModel):
     limit: int = Field(25, ge=1, le=100, description='Maximum number of spaces to return')
@@ -109,6 +112,27 @@ class ConfluenceClient(BaseClient):
         )
         assert data is not None
         return data
+
+
+class AsyncConfluenceClient(AsyncBaseClient):
+    product = 'confluence'
+
+    async def list_pages(self, space_key: str, limit: int = 100) -> list[dict]:
+        return [p async for p in self.paginate(
+            '/rest/api/content', params={'spaceKey': space_key}, items_key='results', start_param='start', limit_param='limit', limit=min(limit, 100), max_items=limit
+        )]
+
+    async def get_page(self, page_id: str) -> dict:
+        data = await self.request('GET', f'/rest/api/content/{page_id}', params={'expand': 'body.storage,version,space'})
+        assert data is not None
+        return data
+
+    async def get_page_markdown(self, page_id: str) -> tuple[str, dict]:
+        page = await self.get_page(page_id)
+        return storage_to_markdown(page['body']['storage']['value']), page
+
+    async def batch_fetch_markdown(self, page_ids: list[str]) -> list[Any]:
+        return list(await asyncio.gather(*(self.get_page_markdown(pid) for pid in page_ids), return_exceptions=True))
 
 
 CONFLUENCE_TOOL_MODELS: dict[str, tuple[type(BaseModel), str]] = {

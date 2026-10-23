@@ -42,7 +42,7 @@ async def sync_space(client: AsyncConfluenceClient, space_key: str, max_pages: i
 
     # Sequential persistence
     with SessionLocal() as db:
-        integration = sb.query(Integration).filter_by(product='confluence').one()
+        integration = db.query(Integration).filter_by(product='confluence').one()
         for page_id, result in zip(ids, results):
             if isinstance(result, BaseException):
                 report.errors.append(f'{page_id}: {type(result).__name__}: {result}')

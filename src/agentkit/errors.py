@@ -38,3 +38,7 @@ class PageNotFoundError(AgentKitError):
 
 class InvalidTransitionError(AgentKitError):
     """Requested Jira workflow transition is not allowed from the current status."""
+
+
+class PluginError(AgentKitError):
+    """Plugin contract violation: bad metadata, tool collision, unloadable module."""

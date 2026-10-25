@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     oauth_state_ttl_seconds: int = 600
     auth_base_url: str = 'https://auth.atlassian.com'
     api_base_url: str = 'https://api.atlassian.com'
+    plugins_dir: str = 'plugins'
 
 
 @lru_cache()

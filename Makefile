@@ -34,7 +34,7 @@ run:
 	uvicorn agentkit.api.main:app --reload --port 8000
 
 evals:
-	python scripts/run_evals.py
+	python scripts/run_evals.py --concurrency $(or $(c),4)
 
 evals-dry-run:
 	python scripts/run_evals.py --dry-run

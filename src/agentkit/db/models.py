@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql.expression import null
 from agentkit.db.session import Base
 
 class IntegrationType(str, enum.Enum):
@@ -82,3 +83,17 @@ class OAuthToken(Base):
 
     def __repr__(self) -> str:
         return f'<OAuthToken cloud={self.cloud_id} expires_at={self.expires_at}>'
+
+
+class PageSnapshot(Base):
+    __tablename__ = 'page_snapshots'
+    __table_args__ = (UniqueConstraint('space_key', 'page_id', name='uq_snapshot_page'),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    integration_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('integrations.id', ondelete='CASCADE'), index=True, nullable=False)
+    space_key: Mapped[str] = mapped_column(String(60), index=True, nullable=False)
+    page_id: Mapped[str] = mapped_column(String(60), nullable=False)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    markdown: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

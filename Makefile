@@ -1,4 +1,4 @@
-.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web
+.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web sync
 
 install:
 	pip install -e ".[dev]"
@@ -34,7 +34,7 @@ run:
 	uvicorn agentkit.api.main:app --reload --port 8000
 
 evals:
-	python scripts/run_evals.py
+	python scripts/run_evals.py --concurrency $(or $(c),4)
 
 evals-dry-run:
 	python scripts/run_evals.py --dry-run
@@ -44,3 +44,6 @@ tune:
 
 web:
 	cd frontend && npm run dev
+
+sync:
+	python scripts/sync_confluence.py --space $(or $(space),EW) --concurrency $(or $(c),8) --benchmark

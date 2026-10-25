@@ -2,13 +2,13 @@
 from __future__ import annotations
 import threading
 import time
-import token
 import httpx
 from collections.abc import Iterator
 from typing import Any
 from agentkit.config import Settings, get_settings
 from agentkit.errors import AtlassianAPIError, AuthError, NotConnectedError, RateLimitError
 from agentkit.sdk.auth import AuthManager
+from agentkit.sdk.policy import is_auth_failure, is_rate_limited, retry_after_seconds
 from agentkit.sdk.token import TokenSet, TokenStoreProtocol
 
 class BaseClient:
@@ -41,19 +41,7 @@ class BaseClient:
 
     # URL building
     def _base(self) -> str:
-        api = self._s.api_base_url.rstrip('/')
-        site = self._s.atlassian_site_url.rstrip('/')
-        if self.auth_mode == 'oauth':
-            if not self.cloud_id:
-                raise NotConnectedError('cloud_id missing; complete the OAuth connect flow first.')
-            base = f'{api}/ex/{self.product}/{self.cloud_id}'
-        else:
-            if not site:
-                raise AuthError('ATLASSIAN_SITE_URL is required for basic auth mode.')
-            base = site
-        if self.product == 'confluence':
-            base += '/wiki'
-        return base
+        return build_base_url(self.product, self.auth_mode, self.cloud_id, self._s)
 
     # Auth plumbing
     def _basic_auth(self) -> tuple[str, str] | None:
@@ -107,19 +95,18 @@ class BaseClient:
         while True:
             resp = self._http.request(method, url, params=params, json=json, headers=self._headers(), auth=self._basic_auth())
 
-            if resp.status_code == 401 and allow_auth_retry:
+            if is_auth_failure(resp.status_code) and allow_auth_retry:
                 allow_auth_retry = False
                 self._force_refresh()
                 continue
 
-            if resp.status_code == 429 and attempts < self._max_retries:
+            if is_rate_limited(resp.status_code) and attempts < self._max_retries:
                 attempts += 1
-                retry_after = min(float(resp.headers.get('Retry-After', '1') or 1), 30.0)
-                self._sleep(retry_after)
+                self._sleep(retry_after_seconds(resp.headers, attempts))
                 continue
 
             if resp.status_code >= 400:
-                cls = RateLimitError if resp.status_code == 429 else AtlassianAPIError
+                cls = RateLimitError if is_rate_limited(resp.status_code) else AtlassianAPIError
                 raise cls(resp.status_code, f'{method} {path} failed', body=resp.text[:500], url=str(resp.url))
 
             if resp.status_code == 204 or not resp.content:
@@ -153,3 +140,21 @@ class BaseClient:
             if not items or len(items) < limit:
                 return
             start += len(items)
+
+
+def build_base_url(product: str, auth_mode: str, cloud_id: str | None, settings: Settings) -> str:
+    api = settings.api_base_url.rstrip('/')
+    site = settings.atlassian_site_url.rstrip('/')
+    if auth_mode == 'oauth':
+        if not cloud_id:
+            raise NotConnectedError('cloud_id is missing: complete the OAuth connect flow first.')
+        base = f'{api}/ex/{product}/{cloud_id}'
+    else:
+        if not site:
+            raise AuthError('ATLASSIAN_SITE_URL is required for basic auth mode.')
+        base = site
+    
+    if product == 'confluence':
+        base += '/wiki'
+
+    return base

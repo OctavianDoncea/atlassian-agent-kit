@@ -1,11 +1,14 @@
 from __future__ import annotations
 import html
 import re
+import asyncio
+from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from pydantic import BaseModel, Field
 from agentkit.errors import PageNotFoundError
 from agentkit.integrations.confluence_markdown import storage_to_markdown
 from agentkit.sdk.http import BaseClient
+from agentkit.sdk.http_async import AsyncBaseClient
 
 class ListSpacesInput(BaseModel):
     limit: int = Field(25, ge=1, le=100, description='Maximum number of spaces to return')
@@ -109,6 +112,51 @@ class ConfluenceClient(BaseClient):
         )
         assert data is not None
         return data
+
+
+class AsyncConfluenceClient(AsyncBaseClient):
+    product = 'confluence'
+
+    async def _collect(self, path: str, params: dict | None = None, limit: int = 25) -> list[dict]:
+        items: list[dict] = []
+        cursor: str | None = None
+        while len(items) < limit:
+            query = dict(params or {})
+            query['limit'] = min(250, limit - len(items))
+            if cursor:
+                query['cursor'] = cursor
+            data = await self.request('GET', path, params=query) or {}
+            batch = data.get('results', [])
+            items.extend(batch)
+            next_link = (data.get('_links') or {}).get('next')
+            if not batch or not next_link:
+                break
+            cursor = (parse_qs(urlsplit(next_link).query).get('cursor') or [None])[0]
+            if not cursor:
+                break
+        return items[:limit]
+
+    async def _space_id(self, space_key: str) -> str:
+        data = await self.request('GET', '/api/v2/spaces', params={'keys': space_key, 'limit': 1}) or {}
+        results = data.get('results', [])
+        if not results:
+            raise PageNotFoundError(f'No Confluence space {space_key!r}')
+        return str(results[0]['id'])
+
+    async def list_pages(self, space_key: str, limit: int = 100) -> list[dict]:
+        return await self._collect(f'/api/v2/spaces/{await self._space_id(space_key)}/pages', {'status': 'current'}, limit)
+
+    async def get_page(self, page_id: str) -> dict:
+        data = await self.request('GET', f'/api/v2/pages/{page_id}', params={'body-format': 'storage'})
+        assert data is not None
+        return data
+
+    async def get_page_markdown(self, page_id: str) -> tuple[str, dict]:
+        page = await self.get_page(page_id)
+        return storage_to_markdown(page['body']['storage']['value']), page
+
+    async def batch_fetch_markdown(self, page_ids: list[str]) -> list[Any]:
+        return list(await asyncio.gather(*(self.get_page_markdown(pid) for pid in page_ids), return_exceptions=True))
 
 
 CONFLUENCE_TOOL_MODELS: dict[str, tuple[type(BaseModel), str]] = {

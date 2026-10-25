@@ -8,12 +8,13 @@ from agentkit.evals.runner import run_suite
 def main() -> int:
     parser = argparse.ArgumentParser(description='Run AgentKit Eval Suite')
     parser.add_argument('--dry-run', action='store_true', help='Mock LLM responses to test the framework')
+    parser.add_argument('--concurrency', type=int, default=1, help='Number of cases to run in parallel')
     args = parser.parse_args()
 
     console = Console()
     console.print('\n[bold blue]AgentKit Evaluation Harness[/bold blue]\n')
 
-    results = run_suite(dry_run=args.dry_run)
+    results = run_suite(dry_run=args.dry_run, concurrency=args.concurrency)
 
     # Summary table
     table = Table(title='Eval Summary')

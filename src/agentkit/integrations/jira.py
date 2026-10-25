@@ -1,6 +1,6 @@
 """Jira Cloud connector + LLM tool input models."""
-import asyncio
 from __future__ import annotations
+import asyncio
 from pydantic import BaseModel, Field
 from agentkit.errors import InvalidTransitionError
 from agentkit.sdk.http import BaseClient

@@ -7,7 +7,7 @@ def test_health():
     assert client.get('/health').status_code == 200
 
 def test_overview_shape():
-    r = client.shape('/api/overview')
+    r = client.get('/api/overview')
     assert r.status_code == 200
     assert {'total_runs', 'overall_pass_rate', 'active_tools', 'regressions_last_7d'} <= set(r.json())
 

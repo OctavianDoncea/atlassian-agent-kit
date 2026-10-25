@@ -5,7 +5,7 @@ import asyncio
 import time
 from agentkit.integrations.sync_pipeline import build_async_confluence_client, sync_space, sync_space_concurrently
 
-async def benchmark(space_key: str, limit: int, concurrency: int) -> tuple[float, float]:
+async def benchmark(space_key: str, limit: int, concurrency: int) -> tuple[float, float, int]:
     async with build_async_confluence_client(concurrency=1) as seq:
         ids = [p['id'] for p in await seq.list_pages(space_key, limit=limit)]
         t0 = time.perf_counter()
@@ -20,7 +20,7 @@ async def benchmark(space_key: str, limit: int, concurrency: int) -> tuple[float
         await con.batch_fetch_markdown(ids)
         con_s = time.perf_counter() - t0
 
-    return seq_s, con_s
+    return seq_s, con_s, len(ids)
 
 async def run(args: argparse.Namespace) -> None:
     if args.benchmark:

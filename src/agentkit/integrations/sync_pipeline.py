@@ -3,7 +3,7 @@ import hashlib
 import time
 from dataclasses import dataclass, field
 from agentkit.config import get_settings
-from agentkit.db.models import Integration, PageSnapshot
+from agentkit.db.models import Integration, IntegrationType, PageSnapshot
 from agentkit.db.session import SessionLocal
 from agentkit.integrations.confluence import AsyncConfluenceClient
 from agentkit.sdk.auth import AuthManager
@@ -16,18 +16,18 @@ class SyncReport:
     created: int = 0
     updated: int = 0
     unchanged: int = 0
-    erorrs: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
     duration_s: float = 0.0
 
 
 def content_hash(text: str) -> str:
-    return hashlib.sha256(text.encode().hexdigest())
+    return hashlib.sha256(text.encode()).hexdigest()
 
 def build_async_confluence_client(concurrency: int = 8) -> AsyncConfluenceClient:
     with SessionLocal() as db:
-        cloud_id = db.query(Integration).filter_by(product='confluence').one().cloud_id
+        cloud_id = db.query(Integration).filter_by(type=IntegrationType.confluence).one().cloud_id
     
-    return AsyncConfluenceClient(cloud_id=cloud_id, auth_mode='oauth', token_store=DbTokenStore(db), auth_manager=AuthManager(db), concurrency=concurrency, settings=get_settings())
+    return AsyncConfluenceClient(cloud_id=cloud_id, auth_mode='oauth', token_store=DbTokenStore(), auth_manager=AuthManager(), concurrency=concurrency, settings=get_settings())
 
 async def sync_space(client: AsyncConfluenceClient, space_key: str, max_pages: int = 100) -> SyncReport:
     report = SyncReport(space_key=space_key)
@@ -42,7 +42,7 @@ async def sync_space(client: AsyncConfluenceClient, space_key: str, max_pages: i
 
     # Sequential persistence
     with SessionLocal() as db:
-        integration = db.query(Integration).filter_by(product='confluence').one()
+        integration = db.query(Integration).filter_by(type=IntegrationType.confluence).one()
         for page_id, result in zip(ids, results):
             if isinstance(result, BaseException):
                 report.errors.append(f'{page_id}: {type(result).__name__}: {result}')

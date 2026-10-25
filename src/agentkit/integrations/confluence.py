@@ -117,13 +117,37 @@ class ConfluenceClient(BaseClient):
 class AsyncConfluenceClient(AsyncBaseClient):
     product = 'confluence'
 
+    async def _collect(self, path: str, params: dict | None = None, limit: int = 25) -> list[dict]:
+        items: list[dict] = []
+        cursor: str | None = None
+        while len(items) < limit:
+            query = dict(params or {})
+            query['limit'] = min(250, limit - len(items))
+            if cursor:
+                query['cursor'] = cursor
+            data = await self.request('GET', path, params=query) or {}
+            batch = data.get('results', [])
+            items.extend(batch)
+            next_link = (data.get('_links') or {}).get('next')
+            if not batch or not next_link:
+                break
+            cursor = (parse_qs(urlsplit(next_link).query).get('cursor') or [None])[0]
+            if not cursor:
+                break
+        return items[:limit]
+
+    async def _space_id(self, space_key: str) -> str:
+        data = await self.request('GET', '/api/v2/spaces', params={'keys': space_key, 'limit': 1}) or {}
+        results = data.get('results', [])
+        if not results:
+            raise PageNotFoundError(f'No Confluence space {space_key!r}')
+        return str(results[0]['id'])
+
     async def list_pages(self, space_key: str, limit: int = 100) -> list[dict]:
-        return [p async for p in self.paginate(
-            '/rest/api/content', params={'spaceKey': space_key}, items_key='results', start_param='start', limit_param='limit', limit=min(limit, 100), max_items=limit
-        )]
+        return await self._collect(f'/api/v2/spaces/{await self._space_id(space_key)}/pages', {'status': 'current'}, limit)
 
     async def get_page(self, page_id: str) -> dict:
-        data = await self.request('GET', f'/rest/api/content/{page_id}', params={'expand': 'body.storage,version,space'})
+        data = await self.request('GET', f'/api/v2/pages/{page_id}', params={'body-format': 'storage'})
         assert data is not None
         return data
 

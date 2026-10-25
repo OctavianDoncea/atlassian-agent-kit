@@ -4,8 +4,6 @@ An open-source **Agentic Integration Framework & Evaluation Harness** for enterp
 
 Built to solve the hardest part of Enterprise AI: reliable data abstractions, strict workflow state-machines, and non-deterministic agent evaluation.
 
-![CI](https://github.com/YOUR_USERNAME/atlassian-agent-kit/actions/workflows/ci.yml/badge.svg)
-
 ## Architecture
 
 ```mermaid

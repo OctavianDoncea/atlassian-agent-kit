@@ -1,5 +1,5 @@
 import httpx
-from agentkit.db.models import PageSnapshot
+from agentkit.db.models import Integration, IntegrationType, PageSnapshot
 from agentkit.db.session import SessionLocal
 from agentkit.integrations.confluence import AsyncConfluenceClient
 from agentkit.integrations.sync_pipeline import sync_space
@@ -26,8 +26,15 @@ def _clean() -> None:
         db.query(PageSnapshot).filter_by(space_key='TEST').delete()
         db.commit()
 
+def _ensure_confluence_integration() -> None:
+    with SessionLocal() as db:
+        if db.query(Integration).filter_by(type=IntegrationType.confluence).one_or_none() is None:
+            db.add(Integration(name='confluence-sync-test', type=IntegrationType.confluence, base_url='https://test.atlassian.net'))
+            db.commit()
+
 def test_sync_is_idempotent_and_change_aware():
     _clean()
+    _ensure_confluence_integration()
     try:
         import asyncio
         async def scenario():

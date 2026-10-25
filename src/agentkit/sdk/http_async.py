@@ -104,7 +104,7 @@ class AsyncBaseClient:
     # Core request (semaphore-bounded)
     async def request(self, method: str, path: str, *, params: dict | None = None, json: dict | None = None) -> dict | None:
         async with self._semaphore:
-            url = build_base_url(self.product, self.auth_mode, self.cloud_id, self._s)
+            url = build_base_url(self.product, self.auth_mode, self.cloud_id, self._s) + path
             allow_auth_retry = self.auth_mode == 'oauth'
             attempts = 0
 
@@ -153,7 +153,7 @@ class AsyncBaseClient:
                 if yielded >= max_items:
                     return
             
-            if not items or len(items) < limit:
+            if not items or len(items) < p[limit_param]:
                 return
 
             start += len(items)

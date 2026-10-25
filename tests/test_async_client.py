@@ -22,7 +22,7 @@ class FakeTokenStore:
 
 
 def _settings() -> Settings:
-    return Settings(_env_file=None, atlassian_site_url='https://test.atlassian.net', token_encryption_key='x' * 44)
+    return Settings(_env_file=None, atlassian_site_url='https://test.atlassian.net', token_encryption_key='')
 
 def _token() -> TokenSet:
     return TokenSet('old-access', 'old-refresh', datetime.now(timezone.utc) + timedelta(minutes=30))
@@ -30,11 +30,11 @@ def _token() -> TokenSet:
 async def test_async_401_triggers_single_rotating_refresh():
     calls = {'api': 0, 'refresh': 0}
 
+    def refresh_handler(request: httpx.Request) -> httpx.Response:
+        calls['refresh'] += 1
+        return httpx.Response(200, json={'access_token': 'new-access', 'refresh_token': 'new-refresh', 'expires_in': 3600, 'scope': 'read:jira-work'})
+
     async def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.host == 'auth.atlassian.com':
-            calls['refresh'] += 1
-            return httpx.Response(200, json={'access_token': 'new-access', 'refresh_token': 'new-refresh', 'expires_in': 3600, 'scope': 'read:jira-work'})
-        
         calls['api'] += 1
         auth = request.headers.get('authorization', '')
 
@@ -45,7 +45,7 @@ async def test_async_401_triggers_single_rotating_refresh():
 
     store = FakeTokenStore(_token())
     async with AsyncJiraClient(
-        cloud_id='cid', auth_mode='oauth', token_store=store, auth_manager=AuthManager(settings=_settings(), httpx=httpx.Client(transport=httpx.MockTransport(handler))),
+        cloud_id='cid', auth_mode='oauth', token_store=store, auth_manager=AuthManager(settings=_settings(), http=httpx.Client(transport=httpx.MockTransport(refresh_handler))),
         transport=httpx.MockTransport(handler), settings=_settings()
     ) as client:
         client._tokens = store.tokens
@@ -93,11 +93,13 @@ async def test_semaphore_bounds_inflight_requests():
     assert 2 <= state['max_in_flight'] <= 3
 
 async def test_async_pagination_walks_all_pages():
-    pages = {'0': ['a', 'b'], '2': ['c', 'd'], '4': ['e']}
+    all_keys = ['a', 'b', 'c', 'd', 'e']
 
     async def handler(request: httpx.Request) -> httpx.Response:
-        start = request.url.params.get('startAt', 0)
-        return httpx.Response(200, json={'issues': [{'key': k} for k in pages.get(str(start), [])]})
+        start = int(request.url.params.get('startAt', '0'))
+        page_size = int(request.url.params.get('maxResults', '50'))
+        chunk = all_keys[start:start + page_size]
+        return httpx.Response(200, json={'issues': [{'key': k} for k in chunk]})
 
     async with AsyncJiraClient(auth_mode='basic', transport=httpx.MockTransport(handler), settings=_settings()) as client:
         issues = await client.search_issues('project = ENG', max_results=50)

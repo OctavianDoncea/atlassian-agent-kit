@@ -11,16 +11,18 @@ def main() -> None:
     ap = argparse.ArgumentParser(description='Run a tool-calling agent over loaded plugins')
     ap.add_argument('--prompt', required=True)
     ap.add_argument('--auth', choices=['basic', 'oauth'], default='basic')
-    ap.add_argument('--max-turns', type=int, default=4)
+    ap.add_argument('--max-turns', type=int, default=5)
     args = ap.parse_args()
 
     settings = get_settings()
     registry = get_registry()
     clients = registry.make_clients(auth_mode=args.auth, settings=settings)
     tools = registry.openai_tools()
-    print(f'loaded plugins: {sorted(registry.plugins)} | tools: {sorted(registry.tool_specs)}\n')
 
-    llm = OpenAI(api_key=settings.groq_api_key, base_url=settings.groq_base_url)
+    print(f'loaded plugins: {sorted(registry.plugins)} | tools: {sorted(registry.tool_specs)}\n')
+    print(f'tools: {sorted(registry.tool_specs)}\n')
+
+    llm = OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
     messages: list[dict] = [{'role': 'user', 'content': args.prompt}]
 
     for turn in range(args.max_turns):
@@ -46,7 +48,7 @@ def main() -> None:
             print(f'  -> {content[:200]}')
             messages.append({'role': 'tool', 'tool_call_id': tc.id, 'content': content})
 
-        print('\nmax turns reached without a final answer')
+    print('\nmax turns reached without a final answer')
 
 if __name__ == '__main__':
     main()

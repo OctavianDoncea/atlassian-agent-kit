@@ -52,7 +52,7 @@ def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0
             temperature = temperature
         )
     except Exception as exc:
-        logger.error('LLM API call failed: %s', exc)
+        logger.debug('LLM API call failed: %s', exc)
         return AgentResponse(raw_content=f'API Error: {exc}')
 
     message = response.choices[0].message

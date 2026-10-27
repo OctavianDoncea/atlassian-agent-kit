@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from agentkit.plugins import get_registry
 
-router = APIRouter(prefix='api/plugins', tags=['plugins'])
+router = APIRouter(prefix='/api/plugins', tags=['plugins'])
 
 @router.get('')
 def list_plugins() -> dict:

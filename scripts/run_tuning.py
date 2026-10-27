@@ -16,7 +16,7 @@ def main() -> int:
     args = ap.parse_args()
 
     console = Console()
-    console.print(f'\n[bold blue]Tunig descriptions for {args.tool}[/bold blue]'
+    console.print(f'\n[bold blue]Tuning descriptions for {args.tool}[/bold blue]'
                   f'(trials={args.trials}, temperature={args.temperature})\n')
 
     results = tune_tool(args.tool, trials=args.trials, temperature=args.temperature, dry_run=args.dry_run)

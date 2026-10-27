@@ -16,11 +16,10 @@ class AgentResponse(BaseModel):
 
 
 def build_tool_schemas(description_overrides: dict[str, None] | None = None, use_db: bool = True) -> list[dict]:
-    from agentkit.integrations.confluence import CONFLUENCE_TOOL_MODELS
-    from agentkit.integrations.jira import JIRA_TOOL_MODELS
+    """OpenAI tool schemas from the plugin registry."""
+    from agentkit.plugins import get_registry
 
-    registry: dict[str, tuple[type, str]] = {**JIRA_TOOL_MODELS, **CONFLUENCE_TOOL_MODELS}
-    active_desc: dict[str, str] = {}
+    active: dict[str, str] = {}
 
     if use_db:
         try:
@@ -29,16 +28,11 @@ def build_tool_schemas(description_overrides: dict[str, None] | None = None, use
 
             with SessionLocal() as db:
                 for row in db.query(ToolSchema).filter_by(is_active=True).all():
-                    active_desc[row.tool_name] = row.description
+                    active[row.tool_name] = row.description
         except Exception:
-            active_desc = {}
+            active = {}
 
-    tools = []
-    for name, (model, desc) in registry.items():
-        final_desc = (description_overrides or {}).get(name) or active_desc.get(name) or desc
-        tools.append(openai_tool(name, final_desc, model))
-    
-    return tools
+    return get_registry().openai_tools(overrides=description_overrides, active_descriptions=active)
 
 def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0, tools: list[dict] | None = None) -> AgentResponse:
     settings = get_settings()
@@ -58,7 +52,7 @@ def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0
             temperature = temperature
         )
     except Exception as exc:
-        logger.error('LLM API call failed: %s', exc)
+        logger.debug('LLM API call failed: %s', exc)
         return AgentResponse(raw_content=f'API Error: {exc}')
 
     message = response.choices[0].message

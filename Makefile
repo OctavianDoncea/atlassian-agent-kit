@@ -1,4 +1,4 @@
-.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web sync
+.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web sync agent new-plugin
 
 install:
 	pip install -e ".[dev]"
@@ -47,3 +47,9 @@ web:
 
 sync:
 	python scripts/sync_confluence.py --space $(or $(space),EW) --concurrency $(or $(c),8) --benchmark
+
+agent:
+	python scripts/run_agent.py --prompt "$(prompt)" --auth $(or $(auth),basic)
+
+new-plugin:
+	python scripts/new_plugin.py --name "$(name)"

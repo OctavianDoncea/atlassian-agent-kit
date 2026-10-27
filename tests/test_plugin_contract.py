@@ -39,7 +39,7 @@ def test_execute_tool_validates_input():
         REG.execute_tool('get_current_time', {'timezone': 12345}, clients)
 
 def test_external_directory_discovery(tmp_path):
-    (tmp_path / 'echo_ext.py').write_text(textwrap.dedent(f"""
+    (tmp_path / 'echo_ext.py').write_text(textwrap.dedent("""
         from pydantic import BaseModel
         from agentkit.plugins.base import IntegrationPlugin, ToolSpec
 
@@ -55,28 +55,25 @@ def test_external_directory_discovery(tmp_path):
             def tools(self):
                 return [ToolSpec("echo_ext_once", "Echo text back", EchoInput, lambda c, i: {"echo": i.text})]
     """))
-    reg = PluginRegistry(Settings(_env_file=None, plugins_dir=str(tmp_path)))
+    reg = PluginRegistry.discover(Settings(_env_file=None, plugins_dir=str(tmp_path)))
     assert 'echo_ext' in reg.plugins
     assert 'echo_ext_once' in reg.tool_specs
     assert reg.execute_tool('echo_ext_once', {'text': 'hi'}, {'echo_ext': reg.plugins['echo_ext']}) == {'echo': 'hi'}
 
 def test_tool_name_collision_rejected():
+    class _M(BaseModel):
+        c: int = 1
+
     class A(IntegrationPlugin):
         name = 'a'
         def tools(self):
-            return [ToolSpec('shared_tool', 'd', _M(), lambda c, i: None)]
+            return [ToolSpec('shared_tool', 'd', _M, lambda c, i: None)]
 
 
     class B(IntegrationPlugin):
         name = 'b'
         def tools(self):
-            return [ToolSpec('shared_tool', 'd', _M(), lambda c, i: None)]
-
-
-    from pydantic import BaseModel as _BM
-
-    class _M(_BM):
-        c: int = 1
+            return [ToolSpec('shared_tool', 'd', _M, lambda c, i: None)]
 
     reg = PluginRegistry()
     reg.register(A())

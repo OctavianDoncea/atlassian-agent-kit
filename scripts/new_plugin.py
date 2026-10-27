@@ -24,7 +24,7 @@ class {cls}Plugin(IntegrationPlugin):
     version = "0.1.0"
 
     def example_tool(self, inp: ExampleInput) -> dict:
-        return {"echo": inp.query}
+        return {{"echo": inp.query}}
 
     def tools(self) -> list[ToolSpec]:
         return [

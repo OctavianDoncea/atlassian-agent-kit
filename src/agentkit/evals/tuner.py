@@ -3,7 +3,6 @@ import csv
 import json
 import statistics
 import time
-from openai.types.responses import Tool
 import yaml
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -13,15 +12,12 @@ from uuid import UUID
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from agentkit.db.models import EvalRun, Integration, ToolSchema
+from agentkit.errors import PluginError
 from agentkit.db.session import SessionLocal
 from agentkit.evals.agent import AgentResponse, invoke_agent, build_tool_schemas
 from agentkit.evals.judges import evaluate_case
 from agentkit.evals.runner import load_cases
-from agentkit.integrations.confluence import CONFLUENCE_TOOL_MODELS
-from agentkit.integrations.jira import JIRA_TOOL_MODELS
 from agentkit.sdk.schema import openai_tool
-
-TOOL_REGISTRY: dict[str, tuple[type, str]] = {**JIRA_TOOL_MODELS, **CONFLUENCE_TOOL_MODELS}
 
 @dataclass
 class VariantResult:
@@ -58,6 +54,10 @@ def load_variants(path: str = 'evals/variants.yaml') -> dict[str, list[dict]]:
     with open(path) as f:
         return yaml.safe_load(f) or {}
 
+def _tool_models() -> dict[str, tuple[type, str]]:
+    from agentkit.plugins import get_registry
+    return get_registry().tool_models()
+
 def _wrong_tool(expected: str) -> str:
     return 'create_issue' if expected != 'create_issue' else 'list_spaces'
 
@@ -72,8 +72,18 @@ def register_variant(db: Session, tool_name: str, variant: dict, model: type) ->
         return row
 
     max_version = db.query(func.max(ToolSchema.version)).filter_by(tool_name=tool_name).scalar() or 0
-    int_name = 'jira' if tool_name in JIRA_TOOL_MODELS else 'confluence'
-    integration = db.query(Integration).filter_by(name=int_name).one()
+
+    from agentkit.plugins import get_registry
+    
+    plugin_name = get_registry().plugin_for_tool(tool_name).name
+    integration = db.query(Integration).filter_by(name=plugin_name).one_or_none()
+    
+    if integration is None:
+        raise PluginError(
+            f"No `integrations` row for plugin {plugin_name!r}; "
+            f"tuning persists per-integration schemas, so connect the plugin first."
+        )
+    
     row = ToolSchema(
         integration_id = integration.id,
         tool_name = tool_name,
@@ -96,15 +106,16 @@ def tune_tool(
     variants_path: str = 'evals/variants.yaml',
     cases_path: str = 'evals/cases.yaml'
 ) -> list[VariantResult]:
-    if tool_name not in TOOL_REGISTRY:
-        raise KeyError(f'Unknown tool {tool_name!r}; registry has {sorted(TOOL_REGISTRY)}')
+    models = _tool_models()
+    if tool_name not in models:
+        raise KeyError(f'Unknown tool {tool_name!r}; registry has {sorted(models)}')
     variants = load_variants(variants_path).get(tool_name)
     if not variants:
         raise KeyError(f'No variants defined for {tool_name !r} in {variants_path}')
     cases = [c for c in load_cases(cases_path) if c.get('expected_tool') == tool_name]
     if not cases:
         raise KeyError(f'No eval cases target {tool_name!r}; add cases to cases.yaml first')
-    model, _ = TOOL_REGISTRY[tool_name]
+    model, _ = models[tool_name]
 
     results: list[VariantResult] = []
     with SessionLocal() as db:

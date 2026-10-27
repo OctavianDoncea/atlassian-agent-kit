@@ -18,6 +18,7 @@ graph TD
         Runner -->|Judge| LLM
         Runner -->|Persist Results| DB
     end
+```
 
 ## Plugin Architecture
 Integrations are plugins. Add one without touching core code:

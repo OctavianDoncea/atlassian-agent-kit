@@ -26,7 +26,7 @@ class PluginRegistry:
         from agentkit.plugins.discovery import iter_plugin_classes
 
         for source, candidate in iter_plugin_classes(settings or get_settings()):
-            label = f'{source}:{getattr(candidate, '__name__', type(candidate).__name__)}'
+            label = f"{source}:{getattr(candidate, '__name__', type(candidate).__name__)}"
             try:
                 plugin = candidate() if inspect.isclass(candidate) else candidate
                 self.register(plugin)

@@ -18,3 +18,13 @@ graph TD
         Runner -->|Judge| LLM
         Runner -->|Persist Results| DB
     end
+
+## Plugin Architecture
+Integrations are plugins. Add one without touching core code:
+1. `make new-plugin name=github` (scaffolds `plugins/github.py`)
+2. Implement `tools()` (pydantic input models + handlers) and `create_client()`
+3. `pytest tests/test_plugin_contract.py` — the generic contract suite validates schema validity, tool-name uniqueness and dispatch
+Discovery channels: `src/agentkit/plugins/builtin/*`, drop-in files in `plugins/`, and pip entry-points:
+```toml
+[project.entry-points."agentkit.plugins"]
+github = "my_pkg.plugins:GithubPlugin"

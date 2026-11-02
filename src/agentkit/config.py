@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     auth_base_url: str = 'https://auth.atlassian.com'
     api_base_url: str = 'https://api.atlassian.com'
     plugins_dir: str = 'plugins'
+    pii_enabled: bool = True
+    pii_use_presidio: bool = False
 
 
 @lru_cache()

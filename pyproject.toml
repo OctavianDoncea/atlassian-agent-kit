@@ -32,6 +32,7 @@ dev = [
     "ruff>=0.4",
     "ipython>=8.25"
 ]
+pii = ["presidio-analyzer>=2.2.350", "spacy>=3.7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

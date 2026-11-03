@@ -16,11 +16,11 @@ def luhn_ok(digits: str) -> bool:
     total = 0
 
     for i, d in enumerate(reversed([int(c) for c in digits])):
-        if i % 2 == 0:
+        if i % 2 == 1:
             d *= 2
             if d > 9:
                 d -= 9
-            
+
         total += d
 
     return total % 10 == 0
@@ -85,7 +85,7 @@ PATTERNS: list[PatternDef] = [
     PatternDef('IBAN', re.compile(r'\b[A-Z]{2}\d{2}(?:\s[A-Z0-9]{4}){2,7}(?:\s[A-Z0-9]{1,4})?\b'), iban_ok),
     PatternDef('CREDIT_CARD', re.compile(r'\b(?:\d[ -]?){12,18}\d\b'), CC_OK),
     PatternDef('NATIONAL_ID', re.compile(r'\b\d{3}-\d{2}-\d{4}\b'), ssn_ok),
-    PatternDef('PHONE', re.compile(r'\+?\d(?:[\s().-]?\d){7,17}\b'), PHONE_OK),
+    PatternDef('PHONE', re.compile(r'\+\d(?:[\s().-]?\d){7,14}\b'), PHONE_OK),
     PatternDef('PRIVATE_IP', re.compile(r'\b(?:10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b'),),
     PatternDef('CREDENTIAL_URL', re.compile(r'\b[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s\/:]+:[^\s@]+@[^\s]+\b'),),
 ]

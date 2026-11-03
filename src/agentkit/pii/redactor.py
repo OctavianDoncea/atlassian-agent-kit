@@ -1,5 +1,7 @@
 from __future__ import annotations
 import hashlib
+import hmac
+import secrets
 from dataclasses import dataclass, field
 from typing import Any
 from agentkit.config import get_settings
@@ -23,6 +25,10 @@ class RedactionResult:
     def count(self) -> int:
         return len(self.spans)
 
+    @property
+    def mapping(self) -> dict[str, str]:
+        return {span.placeholder: span.value for span in self.spans}
+
     def restore(self, text: str | None = None) -> str:
         out = self.text if text is None else text
 
@@ -32,8 +38,11 @@ class RedactionResult:
         return out
 
 
+_PLACEHOLDER_KEY = secrets.token_bytes(32)
+
 def placeholder_for(kind: str, value: str) -> str:
-    return f'[{kind}_{hashlib.sha256(value.encode()).hexdigest()[:8]}]'
+    tag = hmac.new(_PLACEHOLDER_KEY, value.encode(), hashlib.sha256).hexdigest()[:16]
+    return f'[{kind}_{tag}]'
 
 class Redactor:
     def __init__(self, engine: DetectionEngine | None = None, enabled: bool | None = None):

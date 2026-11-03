@@ -1,6 +1,10 @@
+import hashlib
 import json
+from fastapi.testclient import TestClient
+from agentkit.api.main import app
 from agentkit.evals.agent import invoke_agent
 from agentkit.evals.judges import semantic_judge
+from agentkit.pii.redactor import Redactor
 
 class _Message:
     def __init__(self):
@@ -38,7 +42,7 @@ def test_invoke_agent_redacts_prompt_at_egress():
 
 def test_semantic_judge_payload_redacted():
     fake = _FakeOpenAI()
-    fake.chat.completions.create = lambda **kw: (_capture(kw, fake), _judge_ok())[1]
+    fake.chat.completions.create = lambda **kw: _capture(kw, fake)
 
     captured = {}
 
@@ -53,9 +57,6 @@ def test_semantic_judge_payload_redacted():
         resp.choices = [choice]
         return resp
 
-    def _judge_ok():
-        return None
-
     result = semantic_judge(
         'user jane@acme.com', 'search_issues', {'q': 'jane@acme.com'},
         'search_issues', {'q': 'jane@acme.com'}, llm_client=fake,
@@ -64,3 +65,22 @@ def test_semantic_judge_payload_redacted():
     assert result.passed is True
     assert 'jane@acme.com' not in sent
     assert '[EMAIL_' in sent
+
+def test_redact_endpoint_does_not_return_secrets():
+    value = 'jane@acme.com'
+    response = TestClient(app).post('/api/pii/redact', json={'text': f'Mail {value}'})
+    body = response.json()
+    assert response.status_code == 200
+    assert 'mapping' not in body
+    assert value not in response.text
+    public = hashlib.sha256(value.encode()).hexdigest()[:8]
+    assert public not in body['redacted']
+    assert '[EMAIL_' in body['redacted']
+    assert body['kinds'] == ['EMAIL']
+
+def test_placeholder_is_stable_but_not_a_public_hash():
+    value = 'jane.doe@acme.com'
+    first = Redactor(enabled=True).redact(value)
+    second = Redactor(enabled=True).redact(value)
+    assert first.spans[0].placeholder == second.spans[0].placeholder
+    assert hashlib.sha256(value.encode()).hexdigest()[:8] not in first.text

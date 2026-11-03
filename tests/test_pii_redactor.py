@@ -33,9 +33,9 @@ def test_api_keys_jwt_and_private_key():
     kinds = {s.kind for s in res.spans}
     assert {'API_KEY', 'JWT', 'PRIVATE_KEY'} <= kinds
 
-def test_cnp_checksum_gate():
-    assert '[CNP_' in r().redact('CNP 1880101123456').text
-    assert '[CNP_' not in r().redact('CNP 1880101123457').text
+def test_national_id_gate():
+    assert '[NATIONAL_ID_' in r().redact('ssn 123-45-6789').text
+    assert '[NATIONAL_ID_' not in r().redact('ssn 123-00-6789').text
 
 def test_restore_roundtrip():
     original = 'jane@acme.com / +9999999999'

@@ -31,7 +31,7 @@ def subset_match(expected: dict, actual: dict) -> JudgeResult:
 
 def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actual_tool: str, actual_params: dict, model: str | None = None, llm_client: Any = None) -> JudgeResult:
     settings = get_settings()
-    if not settings.groq_api_key:
+    if llm_client is None and not settings.groq_api_key:
         return JudgeResult(False, 'Cannot run semantic judge without GROQ_API_KEY.')
 
     model = model or settings.judge_llm_model

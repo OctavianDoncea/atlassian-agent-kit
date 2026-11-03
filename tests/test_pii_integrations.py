@@ -33,7 +33,7 @@ class _FakeOpenAI:
 
 def test_invoke_agent_redacts_prompt_at_egress():
     fake = _FakeOpenAI()
-    resp = invoke_agent('Bug: user jane.doe@acme.com crashed, call +9999999999', llm_client=fake)
+    resp = invoke_agent('Bug: user jane.doe@acme.com crashed, call +9999999999', tools=[], llm_client=fake)
     sent = fake.chat.completions.captured['messages'][0]['content']
     assert 'jane.doe@acme.com' not in sent and '+9999999999' not in sent
     assert '[EMAIL_' in sent and '[PHONE_' in sent

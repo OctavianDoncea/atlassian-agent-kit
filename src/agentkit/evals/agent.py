@@ -39,7 +39,7 @@ def build_tool_schemas(description_overrides: dict[str, None] | None = None, use
 
 def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0, tools: list[dict] | None = None, llm_client: Any = None, redact: bool | None = None) -> AgentResponse:
     settings = get_settings()
-    if not settings.groq_api_key:
+    if llm_client is None and not settings.groq_api_key:
         raise AgentKitError("GROQ_API_KEY is not set.")
 
     redactor = get_redactor()

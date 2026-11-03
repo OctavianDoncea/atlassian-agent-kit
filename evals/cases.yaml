@@ -47,3 +47,12 @@ cases:
     expected_params:
       jql: "assignee = currentUser() ORDER BY created DESC"
     judge_mode: "semantic_jql"
+
+  - id: "jira_create_with_pii"
+    prompt: "Create a Bug in ENG with summary 'Crash on login'; in the description mention reporter jane.doe@acme.com and phone +9999999999."
+    expected_tool: "create_issue"
+    expected_params:
+      project_key: "ENG"
+      summary: "Crash on login"
+      issue_type: "Bug"
+    judge_mode: "subset_match"

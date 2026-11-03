@@ -4,6 +4,7 @@ import logging
 from typing import Any
 from openai import OpenAI
 from agentkit.config import get_settings
+from agentkit.pii import get_redactor
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def subset_match(expected: dict, actual: dict) -> JudgeResult:
 
     return JudgeResult(True, 'All expected parameters present.')
 
-def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actual_tool: str, actual_params: dict, model: str | None = None) -> JudgeResult:
+def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actual_tool: str, actual_params: dict, model: str | None = None, llm_client: Any = None) -> JudgeResult:
     settings = get_settings()
     if not settings.groq_api_key:
         return JudgeResult(False, 'Cannot run semantic judge without GROQ_API_KEY.')
@@ -43,9 +44,10 @@ def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actua
                     Expected parameters: {expected_params}
                     Actual tool: {actual_tool}
                     Actual parameters: {json.dumps(actual_params)}"""
+    user_prompt = get_redactor().redact(user_prompt).text
 
     try:
-        client = OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
+        client = llm_client or OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
         response = client.chat.completions.create(
             model=model,
             messages=[

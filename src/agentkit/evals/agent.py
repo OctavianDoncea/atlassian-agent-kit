@@ -1,11 +1,13 @@
 from __future__ import annotations
 import json
 import logging
+from typing import Any
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from agentkit.config import get_settings
 from agentkit.errors import AgentKitError
 from agentkit.sdk.schema import openai_tool
+from agentkit.pii import RedactionResult, get_redactor
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +15,7 @@ class AgentResponse(BaseModel):
     tool_name: str | None = None
     arguments: dict = Field(default_factory=dict)
     raw_content: str | None = None
+    redaction: RedactionResult | None = None
 
 
 def build_tool_schemas(description_overrides: dict[str, None] | None = None, use_db: bool = True) -> list[dict]:
@@ -34,26 +37,30 @@ def build_tool_schemas(description_overrides: dict[str, None] | None = None, use
 
     return get_registry().openai_tools(overrides=description_overrides, active_descriptions=active)
 
-def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0, tools: list[dict] | None = None) -> AgentResponse:
+def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0, tools: list[dict] | None = None, llm_client: Any = None, redact: bool | None = None) -> AgentResponse:
     settings = get_settings()
     if not settings.groq_api_key:
         raise AgentKitError("GROQ_API_KEY is not set.")
 
+    redactor = get_redactor()
+    do_redact = redactor.enabled if redact is None else redact
+    outbound = redactor.redact(prompt) if do_redact else RedactionResult(text=prompt)
+
     model = model or settings.llm_model
-    client = OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
+    client = llm_client or OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
     tools = tools if tools is not None else build_tool_schemas()
 
     try:
         response = client.chat.completions.create(
             model = model,
-            messages = [{"role": "user", "content": prompt}],
+            messages = [{"role": "user", "content": outbound.text}],
             tools = tools,
             tool_choice = "auto",
             temperature = temperature
         )
     except Exception as exc:
         logger.debug('LLM API call failed: %s', exc)
-        return AgentResponse(raw_content=f'API Error: {exc}')
+        return AgentResponse(raw_content=f'API Error: {exc}', redaction=outbound if outbound.spans else None)
 
     message = response.choices[0].message
 
@@ -64,6 +71,6 @@ def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0
         except json.JSONDecodeError:
             args = {'_raw_args': tc.function.arguments}
         
-        return AgentResponse(tool_name=tc.function.name, arguments=args, raw_content=message.content)
+        return AgentResponse(tool_name=tc.function.name, arguments=args, raw_content=message.content, redaction=outbound if outbound.spans else None)
 
-    return AgentResponse(raw_content=message.content or '')
+    return AgentResponse(raw_content=message.content or '', redaction=outbound if outbound.spans else None)

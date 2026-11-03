@@ -6,6 +6,7 @@ import json
 from openai import OpenAI
 from agentkit.config import get_settings
 from agentkit.plugins import get_registry
+from agentkit.pii import get_redactor, restore_any
 
 def main() -> None:
     ap = argparse.ArgumentParser(description='Run a tool-calling agent over loaded plugins')
@@ -23,7 +24,12 @@ def main() -> None:
     print(f'tools: {sorted(registry.tool_specs)}\n')
 
     llm = OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
-    messages: list[dict] = [{'role': 'user', 'content': args.prompt}]
+    redactor = get_redactor()
+    first = redactor.redact(args.prompt)
+    merged: dict[str, str] = dict(first.mapping)
+    if first.count:
+        print(f'redacted {first.count} sensitive item(s) before LLM egress')
+    messages: list[dict] = [{'role': 'user', 'content': first.text}]
 
     for turn in range(args.max_turns):
         resp = llm.chat.completions.create(model=settings.llm_model, messages=messages, tools=tools, tool_choice='auto')
@@ -37,6 +43,7 @@ def main() -> None:
 
         for tc in msg.tool_calls:
             arguments = json.loads(tc.function.arguments or '{}')
+            arguments = restore_any(arguments, merged)
             print(f'{tc.function.name}({arguments})')
             
             try:
@@ -45,8 +52,10 @@ def main() -> None:
             except Exception as exc:
                 content = f'ERROR: {type(exc).__name__}: {exc}'
             
-            print(f'  -> {content[:200]}')
-            messages.append({'role': 'tool', 'tool_call_id': tc.id, 'content': content})
+            redacted_result = redactor.redact(content)
+            merged.update(redacted_result.mapping)
+            print(f'  -> {redacted_result.text[:200]}')
+            messages.append({'role': 'tool', 'tool_call_id': tc.id, 'content': redacted_result.text})
 
     print('\nmax turns reached without a final answer')
 

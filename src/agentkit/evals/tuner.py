@@ -131,10 +131,10 @@ def tune_tool(
                         fail = (trial + vi) % 4 == 0
                         resp = AgentResponse(tool_name=_wrong_tool(case['expected_tool']) if fail else case['expected_tool'], arguments=case.get('expected_params', {}))
                     else:
-                        resp = invoke_agent(case['prompt'], temperature=temperature, tools=tools)
+                        resp = invoke_agent(case['prompt'], temperature=temperature, tools=tools, ref=f"{tool_name}:{variant['name']}")
                     duration_ms = int((time.time() - start) * 1000)
 
-                    judge = evaluate_case(case, resp.tool_name, resp.arguments, dry_run=dry_run)
+                    judge = evaluate_case(case, resp.tool_name, resp.arguments, dry_run=dry_run, ref=f"{tool_name}:{variant['name']}")
                     res.trials += 1
                     res.duration_ms.append(duration_ms)
                     if judge.passed:

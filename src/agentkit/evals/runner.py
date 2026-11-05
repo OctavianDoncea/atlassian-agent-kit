@@ -3,7 +3,6 @@ import time
 import logging
 import yaml
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 from typing import Any
 from sqlalchemy.orm import Session
 from agentkit.db.models import EvalRun, ToolSchema
@@ -38,10 +37,10 @@ def run_suite(suite_name: str = 'default', dry_run: bool = False, concurrency: i
         if dry_run:
             agent_resp = AgentResponse(tool_name=expected_tool, arguments=case.get('expected_params', {}))
         else:
-            agent_resp = invoke_agent(prompt)
+            agent_resp = invoke_agent(prompt, ref=case_id)
         duration_ms = int((time.time() - start_time) * 1000)
 
-        judge_result = evaluate_case(case, agent_resp.tool_name, agent_resp.arguments, dry_run=dry_run)
+        judge_result = evaluate_case(case, agent_resp.tool_name, agent_resp.arguments, dry_run=dry_run, ref=case_id)
 
         # Sessions are not thread-safe; each worker opens its own.
         is_regression = False

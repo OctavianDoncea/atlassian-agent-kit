@@ -2,8 +2,8 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
-from openai import OpenAI
 from agentkit.config import get_settings
+from agentkit.llm import chat_completion
 from agentkit.pii import get_redactor
 
 logger = logging.getLogger(__name__)
@@ -24,12 +24,21 @@ def subset_match(expected: dict, actual: dict) -> JudgeResult:
     for k, v in expected.items():
         if k not in actual:
             return JudgeResult(False, f"Missing key '{k}'. Expected {v}.")
-        if actual[k] != v:
+        if not _same_param(k, v, actual[k]):
             return JudgeResult(False, f"Mismatched key '{k}'. Expected {v}, got {actual[k]}.")
 
     return JudgeResult(True, 'All expected parameters present.')
 
-def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actual_tool: str, actual_params: dict, model: str | None = None, llm_client: Any = None) -> JudgeResult:
+
+def _same_param(key: str, expected, actual) -> bool:
+    if expected == actual:
+        return True
+   
+    if key == 'jql' and isinstance(expected, str) and isinstance(actual, str):
+        return expected.replace('"', "'") == actual.replace('"', "'")
+    return False
+
+def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actual_tool: str, actual_params: dict, model: str | None = None, llm_client: Any = None, ref: str | None = None) -> JudgeResult:
     settings = get_settings()
     if llm_client is None and not settings.groq_api_key:
         return JudgeResult(False, 'Cannot run semantic judge without GROQ_API_KEY.')
@@ -47,17 +56,19 @@ def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actua
     user_prompt = get_redactor().redact(user_prompt).text
 
     try:
-        client = llm_client or OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
-        response = client.chat.completions.create(
-            model=model,
+        result = chat_completion(
             messages=[
                 {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': user_prompt}
+                {'role': 'user', 'content': user_prompt},
             ],
+            purpose='judge',
+            model=model,
+            temperature=0.0,
             response_format={'type': 'json_object'},
-            temperature=0.0
+            ref=ref,
+            client=llm_client,
         )
-        content = response.choices[0].message.content or ''
+        content = result.message.content or ''
         data = json.loads(content)
         
         return JudgeResult(bool(data.get('passed', False)), data.get('reasoning', 'No reasoning provided.'))
@@ -65,7 +76,7 @@ def semantic_judge(prompt: str, expected_tool: str, expected_params: dict, actua
         logger.error(f'Judge LLM failed: {e}')
         return JudgeResult(False, f'Judge LLM error: {e}')
 
-def evaluate_case(case: dict, actual_tool: str | None, actual_params: dict, dry_run: bool = False) -> JudgeResult:
+def evaluate_case(case: dict, actual_tool: str | None, actual_params: dict, dry_run: bool = False, ref: str | None = None) -> JudgeResult:
     if actual_tool != case.get('expected_tool'):
         return JudgeResult(False, f"Wrong tool selected. Expected {case.get('expected_tool')}, got {actual_tool}.")
 
@@ -79,6 +90,6 @@ def evaluate_case(case: dict, actual_tool: str | None, actual_params: dict, dry_
     if mode == 'semantic_jql':
         if dry_run:
             return exact_match(expected_params, actual_params)
-        return semantic_judge(case.get('prompt', ''), case['expected_tool'], expected_params, actual_tool, actual_params)
+        return semantic_judge(case.get('prompt', ''), case['expected_tool'], expected_params, actual_tool, actual_params, ref=ref)
 
     return JudgeResult(False, f'Unknown judge mode: {mode}')

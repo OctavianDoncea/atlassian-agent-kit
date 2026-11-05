@@ -3,8 +3,10 @@
 from __future__ import annotations
 import argparse
 import json
-from openai import OpenAI
+from uuid import uuid4
 from agentkit.config import get_settings
+from agentkit.llm import chat_completion
+from agentkit.llm.usage import UsageRecord
 from agentkit.plugins import get_registry
 from agentkit.pii import get_redactor, restore_any
 
@@ -23,20 +25,24 @@ def main() -> None:
     print(f'loaded plugins: {sorted(registry.plugins)} | tools: {sorted(registry.tool_specs)}\n')
     print(f'tools: {sorted(registry.tool_specs)}\n')
 
-    llm = OpenAI(api_key=settings.groq_api_key, base_url=settings.llm_base_url)
     redactor = get_redactor()
     first = redactor.redact(args.prompt)
     merged: dict[str, str] = dict(first.mapping)
     if first.count:
         print(f'redacted {first.count} sensitive item(s) before LLM egress')
     messages: list[dict] = [{'role': 'user', 'content': first.text}]
+    session_id = uuid4().hex[:8]
+    usages: list[UsageRecord] = []
 
     for turn in range(args.max_turns):
-        resp = llm.chat.completions.create(model=settings.llm_model, messages=messages, tools=tools, tool_choice='auto')
-        msg = resp.choices[0].message
+        result = chat_completion(messages=messages, purpose='agent_loop', tools=tools, temperature=0.0, ref=f'{session_id}/turn-{turn}')
+        usages.append(result.usage)
+        msg = result.message
+        print(f"#{turn} {result.usage.model} in={result.usage.input_tokens} out={result.usage.output_tokens} ${result.usage.cost_usd:.6f}")
 
         if not msg.tool_calls:
             print(f'\n{msg.content}')
+            _print_spend(usages)
             return
 
         messages.append(msg)
@@ -58,6 +64,13 @@ def main() -> None:
             messages.append({'role': 'tool', 'tool_call_id': tc.id, 'content': redacted_result.text})
 
     print('\nmax turns reached without a final answer')
+    _print_spend(usages)
+
+def _print_spend(usages: list[UsageRecord]) -> None:
+    total_in = sum(item.input_tokens for item in usages)
+    total_out = sum(item.output_tokens for item in usages)
+    total_cost = sum(item.cost_usd for item in usages)
+    print(f'session spend: {total_in} in + {total_out} out = ${total_cost:.6f}')
 
 if __name__ == '__main__':
     main()

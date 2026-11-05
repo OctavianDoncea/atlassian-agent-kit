@@ -1,10 +1,16 @@
 import hashlib
 import json
+import pytest
 from fastapi.testclient import TestClient
 from agentkit.api.main import app
 from agentkit.evals.agent import invoke_agent
 from agentkit.evals.judges import semantic_judge
 from agentkit.pii.redactor import Redactor
+
+@pytest.fixture(autouse=True)
+def _skip_usage_ledger(monkeypatch):
+    monkeypatch.setattr('agentkit.llm.gateway.persist_usage', lambda record: None)
+    monkeypatch.setattr('agentkit.llm.gateway.cost_usd', lambda *args, **kwargs: 0.0)
 
 class _Message:
     def __init__(self):

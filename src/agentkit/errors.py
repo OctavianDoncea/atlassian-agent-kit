@@ -42,3 +42,7 @@ class InvalidTransitionError(AgentKitError):
 
 class PluginError(AgentKitError):
     """Plugin contract violation: bad metadata, tool collision, unloadable module."""
+
+
+class PricingError(AgentKitError):
+    """Live token rates could not be read or do not cover the requested model."""

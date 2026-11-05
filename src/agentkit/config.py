@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     llm_model: str = 'openai/gpt-oss-120b'
     judge_llm_model: str = 'openai/gpt-oss-20b'
     llm_base_url: str = ''
+    groq_models_doc_url: str = 'https://console.groq.com/docs/models.md'
+    groq_prompt_caching_doc_url: str = 'https://console.groq.com/docs/prompt-caching.md'
+    llm_pricing_ttl_seconds: int = 3600
     app_env: str = 'dev'
     token_encryption_key: str = ''
     oauth_state_ttl_seconds: int = 600

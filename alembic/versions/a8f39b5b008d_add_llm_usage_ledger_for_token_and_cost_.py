@@ -1,4 +1,4 @@
-"""add llm_usage ledger for token and cost trafficking
+"""add llm_usage ledger for token and cost tracking
 
 Revision ID: a8f39b5b008d
 Revises: 1079a9062212

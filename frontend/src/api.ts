@@ -21,6 +21,13 @@ export interface Regression {
     id: string; created_at: string; tool_name: string; prompt: string; reasoning: string | null;
 }
 
+export interface UsageSummary {
+    totals: { calls: number; input_tokens: number; output_tokens: number; cost_usd: number };
+    by_purpose: { purpose: string; calls: number; tokens: number; cost_usd: number }[];
+    by_model: { model: string; calls: number; tokens: number; cost_usd: number }[];
+    daily: { bucket: string; tokens: number; cost_usd: number }[];
+}
+
 export interface RunState {
     running: boolean; started_at: string | null; finished_at: string | null; 
     last_summary: { total: number; passed: number; failed: number; regressions: string[] }
@@ -37,6 +44,7 @@ export const api = {
     evals: (limit = 100) => get<EvalRun[]>(`/api/evals?limit=${limit}`),
     timeseries: (days = 14) => get<TimeseriesPoint[]>(`/api/evals/timeseries?days=${days}`),
     tools: () => get<VariantStat[]>(`/api/tools`),
+    usageSummary: (days = 30) => get<UsageSummary>(`/api/usage/summary?days=${days}`),
     regressions: () => get<Regression[]>(`/api/regressions`),
     runState: () => get<RunState>('/api/evals/run/status'),
     triggerRun: async (dry = false): Promise<RunState> => {

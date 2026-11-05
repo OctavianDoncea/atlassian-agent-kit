@@ -15,6 +15,11 @@ def test_subset_match_pass():
     assert res.passed is True
 
 
+def test_subset_match_jql_ignores_quote_style_and_extra_params():
+    expected = {'jql': "project = ENG AND status = 'In Progress'"}
+    actual = {'jql': 'project = ENG AND status = "In Progress"', 'fields': ['key'], 'max_results': 200}
+    assert subset_match(expected, actual).passed is True
+
 def test_subset_match_fail():
     res = subset_match({'a': 1, 'b': 2}, {'a': 1})
     assert res.passed is False

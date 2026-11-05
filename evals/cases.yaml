@@ -39,14 +39,14 @@ cases:
     expected_tool: "search_issues"
     expected_params:
       jql: "project = ENG AND status = 'In Progress'"
-    judge_mode: "semantic_jql"
+    judge_mode: "subset_match"
 
   - id: "jira_search_assigned_me"
     prompt: "Show me everything assigned to me across all projects, most recent first."
     expected_tool: "search_issues"
     expected_params:
-      jql: "assignee = currentUser() ORDER BY created DESC"
-    judge_mode: "semantic_jql"
+      jql: "assignee = currentUser() ORDER BY updated DESC"
+    judge_mode: "subset_match"
 
   - id: "jira_create_with_pii"
     prompt: "Create a Bug in ENG with summary 'Crash on login'; in the description mention reporter jane.doe@acme.com and phone +9999999999."

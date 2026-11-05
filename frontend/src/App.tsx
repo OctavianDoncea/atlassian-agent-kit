@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api';
-import type { EvalRun, Overview, Regression, RunState, TimeseriesPoint, VariantStat } from './api';
+import type { EvalRun, Overview, Regression, RunState, TimeseriesPoint, UsageSummary, VariantStat } from './api';
 import Cards from './components/Cards';
 import { PassRateChart, VariantChart } from './components/Charts';
 import RunsTable from './components/RunsTable';
 import SchemaBrowser from './components/SchemaBrowser';
+import UsagePanel from './components/UsagePanel';
 
 export default function App() {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -14,6 +15,7 @@ export default function App() {
   const [regs, setRegs] = useState<Regression[]>([]);
   const [runState, setRunState] = useState<RunState | null>(null);
   const [tool, setTool] = useState('search_issues');
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -23,6 +25,7 @@ export default function App() {
         api.evals(100), api.regressions(), api.runState(),
       ]);
       setOverview(o); setSeries(s); setStats(t); setRuns(r); setRegs(g); setRunState(rs);
+      setUsage(await api.usageSummary(30).catch(() => null));
       setError(null);
     } catch (e) {
       setError(String(e));
@@ -72,6 +75,7 @@ export default function App() {
       )}
 
       <Cards o={overview} />
+      <UsagePanel summary={usage} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <section className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">

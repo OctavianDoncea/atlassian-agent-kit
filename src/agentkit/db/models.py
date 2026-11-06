@@ -7,6 +7,7 @@ from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Index, Integer, Nume
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.expression import null
+from pgvector.sqlalchemy import Vector
 from agentkit.db.session import Base
 
 class IntegrationType(str, enum.Enum):
@@ -114,4 +115,18 @@ class LLMUsage(Base):
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 8), nullable=False, default=0)
     estimated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     duration_ms: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class DocumentChunk(Base):
+    __tablename__ = 'document_chunks'
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(300), index=True, nullable=False)
+    page: Mapped[int | None] = mapped_column(Integer)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    embedding: Mapped[Vector] = mapped_column(Vector(768), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

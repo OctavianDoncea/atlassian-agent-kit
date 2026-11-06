@@ -24,7 +24,8 @@ dependencies = [
     "pyyaml>=6.0",
     "rich>=13.7",
     "pytest-asyncio>=0.23",
-    "tiktoken>=0.7"
+    "tiktoken>=0.7",
+    "pgvector>=0.3"
 ]
 
 [project.optional-dependencies]

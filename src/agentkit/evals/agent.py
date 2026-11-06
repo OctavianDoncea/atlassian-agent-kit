@@ -8,6 +8,7 @@ from agentkit.errors import AgentKitError
 from agentkit.llm import chat_completion
 from agentkit.llm.usage import UsageRecord
 from agentkit.pii import RedactionResult, get_redactor
+from agentkit.rag.tool import TOOL_SCHEMA
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,12 @@ def build_tool_schemas(description_overrides: dict[str, None] | None = None, use
         except Exception:
             active = {}
 
-    return get_registry().openai_tools(overrides=description_overrides, active_descriptions=active)
+    tools = get_registry().openai_tools(overrides=description_overrides, active_descriptions=active)
+    rag = TOOL_SCHEMA
+    override = (description_overrides or {}).get('local_rag_search')
+    if override:
+        rag = {**TOOL_SCHEMA, 'function': {**TOOL_SCHEMA['function'], 'description': override}}
+    return [*tools, rag]
 
 def invoke_agent(prompt: str, model: str | None = None, temperature: float = 0.0, tools: list[dict] | None = None, llm_client: Any = None, redact: bool | None = None, ref: str | None = None) -> AgentResponse:
     settings = get_settings()

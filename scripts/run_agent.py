@@ -9,6 +9,7 @@ from agentkit.llm import chat_completion
 from agentkit.llm.usage import UsageRecord
 from agentkit.plugins import get_registry
 from agentkit.pii import get_redactor, restore_any
+from agentkit.rag.tool import TOOL_SCHEMA, local_rag_search
 
 def main() -> None:
     ap = argparse.ArgumentParser(description='Run a tool-calling agent over loaded plugins')
@@ -20,7 +21,7 @@ def main() -> None:
     settings = get_settings()
     registry = get_registry()
     clients = registry.make_clients(auth_mode=args.auth, settings=settings)
-    tools = registry.openai_tools()
+    tools = [*registry.openai_tools(), TOOL_SCHEMA]
 
     print(f'loaded plugins: {sorted(registry.plugins)} | tools: {sorted(registry.tool_specs)}\n')
     print(f'tools: {sorted(registry.tool_specs)}\n')
@@ -53,8 +54,13 @@ def main() -> None:
             print(f'{tc.function.name}({arguments})')
             
             try:
-                result = registry.execute_tool(tc.function.name, arguments, clients)
-                content = json.dumps(result, default=str)[:4000]
+                if tc.function.name == 'local_rag_search':
+                    raw_k = arguments.get('k')
+                    k = int(raw_k) if raw_k is not None else None
+                    content = json.dumps(local_rag_search(arguments.get('query', ''), k=k))[:4000]
+                else:
+                    result = registry.execute_tool(tc.function.name, arguments, clients)
+                    content = json.dumps(result, default=str)[:4000]
             except Exception as exc:
                 content = f'ERROR: {type(exc).__name__}: {exc}'
             

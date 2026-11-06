@@ -15,7 +15,7 @@ class Hit:
 
 
 def search(query: str, k: int | None = None, sources: list[str] | None = None, min_score: float = 0.0, client = None) -> list[Hit]:
-    k = k or get_settings().rag_search_k
+    k = k or get_settings().rag_top_k
     qvec = embed_query(query, client=client)
 
     with SessionLocal() as db:
@@ -31,7 +31,7 @@ def search(query: str, k: int | None = None, sources: list[str] | None = None, m
     for chunk, dist in rows:
         score = 1.0 - float(dist)
         if score >= min_score:
-            hits.append(Hit(source=chunk.source, content=chunk.source, score=score, page=chunk.page, chunk_index=chunk.chunk_index))
+            hits.append(Hit(source=chunk.source, content=chunk.content, score=score, page=chunk.page, chunk_index=chunk.chunk_index))
 
     return hits
 

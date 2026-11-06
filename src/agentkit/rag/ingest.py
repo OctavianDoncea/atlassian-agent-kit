@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from agentkit.db.models import DocumentChunk
 from agentkit.db.session import SessionLocal
 from agentkit.rag.chunking import chunk_document
-from agentkit.rag.embeddings import embed_document, embed_texts
+from agentkit.rag.embeddings import embed_texts
 
 @dataclass
 class IngestReport:
@@ -12,7 +12,7 @@ class IngestReport:
     sources: list[str] = field(default_factory=list)
 
 
-def ingest_document(docs: list[dict], client = None, replace_source: bool = False) -> IngestReport:
+def ingest_documents(docs: list[dict], client = None, replace_source: bool = False) -> IngestReport:
     report = IngestReport()
     chunks = []
 

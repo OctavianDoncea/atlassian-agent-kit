@@ -1,4 +1,4 @@
-.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web sync agent new-plugin
+.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web sync agent new-plugin rag-ingest rag-search 
 
 install:
 	pip install -e ".[dev]"
@@ -53,3 +53,8 @@ agent:
 
 new-plugin:
 	python scripts/new_plugin.py --name "$(name)"
+
+rag-ingest:
+	python -m agentkit.rag.cli ingest --dir $(dir)
+rag-search:
+	python -m agentkit.rag.cli search --query "$(q)" --k $(or $(k),5)

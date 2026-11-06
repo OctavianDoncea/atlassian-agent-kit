@@ -32,7 +32,8 @@ def _ollama_embed(texts: list[str]) -> list[list[float]]:
     req = urllib.request.Request(f'{settings.ollama_base_url}/api/embed', data=payload, headers={'Content-Type': 'application/json'})
 
     with urllib.request.urlopen(req, timeout=180) as resp:
-        return json.loads(resp)['embeddings']
+        body = json.loads(resp.read().decode())
+    return body['embeddings']
 
 def embed_texts(texts: list[str], client=None, allow_fallback: bool | None = None) -> list[list[float]]:
     if not texts:

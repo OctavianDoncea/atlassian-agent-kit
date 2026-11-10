@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api';
 import type { EvalRun, Overview, Regression, RunState, TimeseriesPoint, UsageSummary, VariantStat } from './api';
+import AgentConsole from './components/AgentConsole';
+import ApprovalQueue from './components/ApprovalQueue';
 import Cards from './components/Cards';
 import { PassRateChart, VariantChart } from './components/Charts';
 import RunsTable from './components/RunsTable';
@@ -17,6 +19,8 @@ export default function App() {
   const [tool, setTool] = useState('search_issues');
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hitlVersion, setHitlVersion] = useState(0);
+  const [hitlFlash, setHitlFlash] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -37,6 +41,23 @@ export default function App() {
     const id = setInterval(refresh, 10_000);
     return () => clearInterval(id);
   }, [refresh]);
+
+  useEffect(() => {
+    const es = new EventSource('/api/hitl/stream');
+    let flashTimer: ReturnType<typeof setTimeout> | undefined;
+    const bump = () => {
+      setHitlVersion((v) => v + 1);
+      setHitlFlash(true);
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(() => setHitlFlash(false), 2500);
+    };
+    es.addEventListener('snapshot', bump);
+    es.addEventListener('hitl', bump);
+    return () => {
+      clearTimeout(flashTimer);
+      es.close();
+    };
+  }, []);
 
   const tools = useMemo(() => Array.from(new Set(stats.map((s) => s.tool_name))), [stats]);
 
@@ -73,6 +94,11 @@ export default function App() {
           {regs.length} regression(s) detected. Most recent: <b>{regs[0].tool_name}</b>  “{regs[0].prompt}”
         </div>
       )}
+      {hitlFlash && (
+        <div className="mb-4 rounded border border-amber-700 bg-amber-900/30 p-3 text-sm text-amber-300">
+          🔔 HITL event received — approval queue updated below.
+        </div>
+      )}
 
       <Cards o={overview} />
       <UsagePanel summary={usage} />
@@ -96,6 +122,9 @@ export default function App() {
           <VariantChart stats={stats} tool={tool} />
         </section>
       </div>
+
+      <AgentConsole onChanged={() => setHitlVersion((v) => v + 1)} />
+      <ApprovalQueue version={hitlVersion} onChanged={() => setHitlVersion((v) => v + 1)} />
 
       <section className="mt-6">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">Latest eval runs</h2>

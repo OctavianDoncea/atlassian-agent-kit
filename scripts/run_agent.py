@@ -1,82 +1,36 @@
 #! /usr/bin/env python3
-"""Minimal multi-turn tool calling agent over the plugin registry."""
-from __future__ import annotations
+"""CLI wrapper around the gated agent session."""
 import argparse
-import json
-from uuid import uuid4
-from agentkit.config import get_settings
-from agentkit.llm import chat_completion
-from agentkit.llm.usage import UsageRecord
-from agentkit.plugins import get_registry
-from agentkit.pii import get_redactor, restore_any
-from agentkit.rag.tool import TOOL_SCHEMA, local_rag_search
+from agentkit.agent_loop import run_agent_session
+from agentkit.hitl.events import publish_event
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description='Run a tool-calling agent over loaded plugins')
+    ap = argparse.ArgumentParser()
     ap.add_argument('--prompt', required=True)
     ap.add_argument('--auth', choices=['basic', 'oauth'], default='basic')
-    ap.add_argument('--max-turns', type=int, default=5)
+    ap.add_argument('--max-turns', type=int, default=4)
     args = ap.parse_args()
 
-    settings = get_settings()
-    registry = get_registry()
-    clients = registry.make_clients(auth_mode=args.auth, settings=settings)
-    tools = [*registry.openai_tools(), TOOL_SCHEMA]
+    def on_event(event: dict) -> None:
+        publish_event(event)
+        kind = event.get('type')
 
-    print(f'loaded plugins: {sorted(registry.plugins)} | tools: {sorted(registry.tool_specs)}\n')
-    print(f'tools: {sorted(registry.tool_specs)}\n')
+        if kind == 'agent_turn':
+            print(f"turn {event['turn']} (≈${event['cost_usd']:.6f})")
+        elif kind == 'pii_redacted':
+            print(f"redacted {event['count']} sensitive item(s)")
+        elif kind == 'action_pending':
+            print(f"HUMAN APPROVAL REQUIRED: {event['tool_name']} (action {event['action_id']})")
+            print(f"  approve via dashboard, or: make approve id={event['action_id']}")
 
-    redactor = get_redactor()
-    first = redactor.redact(args.prompt)
-    merged: dict[str, str] = dict(first.mapping)
-    if first.count:
-        print(f'redacted {first.count} sensitive item(s) before LLM egress')
-    messages: list[dict] = [{'role': 'user', 'content': first.text}]
-    session_id = uuid4().hex[:8]
-    usages: list[UsageRecord] = []
+    summary = run_agent_session(args.prompt, auth_mode=args.auth, max_turns=args.max_turns, on_event=on_event)
 
-    for turn in range(args.max_turns):
-        result = chat_completion(messages=messages, purpose='agent_loop', tools=tools, temperature=0.0, ref=f'{session_id}/turn-{turn}')
-        usages.append(result.usage)
-        msg = result.message
-        print(f"#{turn} {result.usage.model} in={result.usage.input_tokens} out={result.usage.output_tokens} ${result.usage.cost_usd:.6f}")
-
-        if not msg.tool_calls:
-            print(f'\n{msg.content}')
-            _print_spend(usages)
-            return
-
-        messages.append(msg)
-
-        for tc in msg.tool_calls:
-            arguments = json.loads(tc.function.arguments or '{}')
-            arguments = restore_any(arguments, merged)
-            print(f'{tc.function.name}({arguments})')
-            
-            try:
-                if tc.function.name == 'local_rag_search':
-                    raw_k = arguments.get('k')
-                    k = int(raw_k) if raw_k is not None else None
-                    content = json.dumps(local_rag_search(arguments.get('query', ''), k=k))[:4000]
-                else:
-                    result = registry.execute_tool(tc.function.name, arguments, clients)
-                    content = json.dumps(result, default=str)[:4000]
-            except Exception as exc:
-                content = f'ERROR: {type(exc).__name__}: {exc}'
-            
-            redacted_result = redactor.redact(content)
-            merged.update(redacted_result.mapping)
-            print(f'  -> {redacted_result.text[:200]}')
-            messages.append({'role': 'tool', 'tool_call_id': tc.id, 'content': redacted_result.text})
-
-    print('\nmax turns reached without a final answer')
-    _print_spend(usages)
-
-def _print_spend(usages: list[UsageRecord]) -> None:
-    total_in = sum(item.input_tokens for item in usages)
-    total_out = sum(item.output_tokens for item in usages)
-    total_cost = sum(item.cost_usd for item in usages)
-    print(f'session spend: {total_in} in + {total_out} out = ${total_cost:.6f}')
+    if summary.final_answer:
+        print(f'\n{summary.final_answer}')
+    
+    print(f'\nsession {summary.session_id}: {summary.turns} turns, '
+          f'{summary.input_tokens + summary.output_tokens} tokens ≈ ${summary.cost_usd:.6f}, '
+          f'{summary.pending_encountered} approval(s)')
 
 if __name__ == '__main__':
     main()

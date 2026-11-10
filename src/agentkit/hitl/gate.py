@@ -65,7 +65,7 @@ def execute_with_approval(tool_name: str, arguments: dict, clients: dict[str, An
 
     return GateOutcome(pending=True, action_id=action_id)
 
-def decide(action_id: str, decision: str, *, decided_by: str = 'api', note: str | None, clients: dict[str, Any] | None = None) -> dict:
+def decide(action_id: str, decision: str, *, decided_by: str = 'api', note: str | None = None, clients: dict[str, Any] | None = None) -> dict:
     if decision not in {'approve', 'reject'}:
         raise ValueError('decision must be "approve" or "reject"')
 

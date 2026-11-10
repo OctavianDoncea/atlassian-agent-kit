@@ -7,6 +7,8 @@ from agentkit.api.plugins_routes import router as plugins_router
 from agentkit.api.pii_routes import router as pii_router
 from agentkit.api.usage_routes import router as usage_router
 from agentkit.api.rag_routes import router as rag_router
+from agentkit.api.agent_routes import router as agent_router
+from agentkit.api.hitl_routes import router as hitl_router
 
 app = FastAPI(title='AgentKit API', version='0.2.0')
 
@@ -19,6 +21,8 @@ app.include_router(plugins_router)
 app.include_router(pii_router)
 app.include_router(usage_router)
 app.include_router(rag_router)
+app.include_router(agent_router)
+app.include_router(hitl_router)
 
 @app.get('/health')
 def health() -> dict:

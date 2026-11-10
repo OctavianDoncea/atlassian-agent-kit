@@ -1,4 +1,4 @@
-.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web sync agent new-plugin rag-ingest rag-search 
+.PHONY: install up down migrate revision seed verify test lint evals evals-dry-run run keygen web sync agent new-plugin rag-ingest rag-search approve hitl-list
 
 install:
 	pip install -e ".[dev]"
@@ -56,5 +56,12 @@ new-plugin:
 
 rag-ingest:
 	python -m agentkit.rag.cli ingest --dir $(dir)
+
 rag-search:
 	python -m agentkit.rag.cli search --query "$(q)" --k $(or $(k),5)
+
+approve:
+	python -m agentkit.hitl.cli decide --id $(id) --decision $(or $(d),approve) --by octavian
+
+hitl-list:
+	python -m agentkit.hitl.cli list

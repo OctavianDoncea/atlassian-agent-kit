@@ -13,6 +13,7 @@ _HANDLERS = {
     'create_issue': lambda c, i: c.create_issue(i),
     'transition_issue': lambda c, i: c.transition_issue(i.issue_key, i.transition)
 }
+_APPROVAL_REQUIRED = {'create_issue', 'transition_issue'}
 
 class JiraPlugin(IntegrationPlugin):
     name = 'jira'
@@ -21,7 +22,7 @@ class JiraPlugin(IntegrationPlugin):
     product = 'jira'
 
     def tools(self) -> list[ToolSpec]:
-        return [ToolSpec(name, desc, model, _HANDLERS[name]) for name, (model, desc) in JIRA_TOOL_MODELS.items()]
+        return [ToolSpec(name, desc, model, _HANDLERS[name], requires_approval=name in _APPROVAL_REQUIRED) for name, (model, desc) in JIRA_TOOL_MODELS.items()]
 
     def create_client(self, *, auth_mode='oauth', cloud_id=None, transport=None, settings: Settings | None = None, use_async=False,
         concurrency=8, token_store: TokenStoreProtocol | None = None, auth_manager: AuthManager | None = None

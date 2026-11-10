@@ -15,6 +15,7 @@ class ToolSpec:
     description: str
     model: type[BaseModel]
     invoke: Callable[[Any, BaseModel], Any]
+    requires_approval: bool = False
 
 
 class IntegrationPlugin(ABC):

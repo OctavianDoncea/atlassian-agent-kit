@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     rag_top_k: int = 5
     rag_allow_hash_fallback: bool = False
 
+    # Human-in-the-loop
+    hitl_enabled: bool = True
+    hitl_ttl_seconds: int = 900
+
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()

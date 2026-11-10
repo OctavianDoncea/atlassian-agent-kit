@@ -15,6 +15,7 @@ _HANDLERS = {
     'get_page_markdown': _get_page_markdown,
     'create_page': lambda c, i: c.create_page(i)
 }
+_APPROVAL_REQUIRED = {'create_page'}
 
 class ConfluencePlugin(IntegrationPlugin):
     name = 'confluence'
@@ -23,7 +24,7 @@ class ConfluencePlugin(IntegrationPlugin):
     product = 'confluence'
 
     def tools(self) -> list[ToolSpec]:
-        return [ToolSpec(name, desc, model, _HANDLERS[name]) for name, (model, desc) in CONFLUENCE_TOOL_MODELS.items()]
+        return [ToolSpec(name, desc, model, _HANDLERS[name], requires_approval=name in _APPROVAL_REQUIRED) for name, (model, desc) in CONFLUENCE_TOOL_MODELS.items()]
 
     def create_client(self, *, auth_mode='oauth', cloud_id=None, transport=None, settings: Settings | None = None, use_async=False, concurrency=8,
         token_store: TokenStoreProtocol | None = None, auth_manager: AuthManager | None = None

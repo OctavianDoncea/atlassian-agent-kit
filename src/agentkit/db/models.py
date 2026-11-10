@@ -120,13 +120,46 @@ class LLMUsage(Base):
 
 class DocumentChunk(Base):
     __tablename__ = 'document_chunks'
+    __table_args__ = (
+        Index('uq_document_chunks_hash', 'content_hash', unique=True),
+        Index('ix_document_chunks_hnsw', 'embedding', postgresql_using='hnsw', postgresql_ops={'embedding': 'vector_cosine_ops'}),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     source: Mapped[str] = mapped_column(String(300), index=True, nullable=False)
     page: Mapped[int | None] = mapped_column(Integer)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    content_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    token_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default='0')
     embedding: Mapped[Vector] = mapped_column(Vector(768), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ActionStatus(str, enum.Enum):
+    pending = 'pending'
+    approved = 'approved'
+    executed = 'executed'
+    rejected = 'rejected'
+    expired = 'expired'
+
+
+class PendingAction(Base):
+    __tablename__ = 'pending_actions'
+    __table_args__ = (Index('ix_pending_actions_status_created', 'status', 'created_at'),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[str | None] = mapped_column(String(64), index=True)
+    tool_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    arguments: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    auth_mode: Mapped[str] = mapped_column(String(20), nullable=False, default='basic')
+    prompt: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[ActionStatus] = mapped_column(Enum(ActionStatus, name='action-status'), default=ActionStatus.pending, nullable=False)
+    decided_by: Mapped[str | None] = mapped_column(String(120))
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[dict | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    executed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
